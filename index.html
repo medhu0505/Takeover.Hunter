@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAKEOVER.HUNTER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@700;800;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:       #050608;
+  --bg2:      #080a0d;
+  --surface:  #0c0f14;
+  --surface2: #111520;
+  --surface3: #161c28;
+  --border:   rgba(0,255,136,0.08);
+  --border2:  rgba(0,255,136,0.15);
+  --border3:  rgba(0,255,136,0.3);
+  --text:     #e8f4f0;
+  --muted:    rgba(200,230,220,0.45);
+  --dimmed:   rgba(200,230,220,0.2);
+  --green:    #00ff88;
+  --green-d:  #00cc6e;
+  --green-bg: rgba(0,255,136,0.06);
+  --green-glow: rgba(0,255,136,0.2);
+  --red:      #ff3d5a;
+  --red-bg:   rgba(255,61,90,0.08);
+  --red-glow: rgba(255,61,90,0.25);
+  --yellow:   #ffcc00;
+  --yellow-bg:rgba(255,204,0,0.08);
+  --blue:     #4db8ff;
+  --blue-bg:  rgba(77,184,255,0.08);
+  --purple:   #bf9eff;
+  --mono: 'Space Mono', monospace;
+  --display: 'Syne', sans-serif;
+  --r4: 4px; --r6: 6px; --r8: 8px;
+  --ease: cubic-bezier(0.4,0,0.2,1);
+}
+
+html,body { height:100%; background:var(--bg); color:var(--text); font-family:var(--mono); font-size:12px; line-height:1.6; overflow:hidden; }
+
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9999;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+}
+body::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9998; opacity:0.4;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+::selection { background:rgba(0,255,136,0.25); }
+::-webkit-scrollbar { width:3px; height:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border3); border-radius:2px; }
+
+/* ── LAYOUT ── */
+.app { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+/* ── HEADER ── */
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px; height:50px;
+  background:var(--surface); border-bottom:1px solid var(--border2);
+  flex-shrink:0; position:relative; overflow:hidden;
+}
+header::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--green),transparent);
+  animation:scanH 4s ease-in-out infinite;
+}
+@keyframes scanH { 0%,100%{transform:translateX(-100%);opacity:0} 50%{transform:translateX(100%);opacity:1} }
+
+.logo {
+  font-family:var(--display); font-size:17px; font-weight:900; letter-spacing:0.12em;
+  color:var(--green); text-shadow:0 0 20px var(--green-glow),0 0 40px rgba(0,255,136,0.1);
+  display:flex; align-items:center; gap:8px;
+}
+.logo-dot { width:6px;height:6px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);animation:blink 2s ease infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.logo em { color:rgba(200,230,220,0.35); font-style:normal; font-weight:700; }
+
+.hdr-right { display:flex; align-items:center; gap:14px; }
+.hdr-stat { font-size:10px; color:var(--muted); letter-spacing:0.08em; }
+.hdr-stat span { color:var(--green); font-weight:700; }
+
+.status-chip {
+  display:flex; align-items:center; gap:6px;
+  font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted);
+  padding:4px 10px; background:var(--surface2); border:1px solid var(--border2); border-radius:20px;
+}
+.status-chip.running { color:var(--yellow); border-color:rgba(255,204,0,0.3); background:var(--yellow-bg); }
+.status-chip.vulns   { color:var(--red);    border-color:rgba(255,61,90,0.3);  background:var(--red-bg);   }
+.status-chip.ok      { color:var(--green);  border-color:var(--border3);       background:var(--green-bg); }
+.status-chip.scanning{ color:var(--blue);   border-color:rgba(77,184,255,0.3); background:var(--blue-bg);  }
+.status-led { width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor; }
+.status-chip.running .status-led,.status-chip.scanning .status-led { animation:blink 0.8s ease infinite; }
+
+/* ── STAGE BAR ── */
+.stage-bar {
+  display:flex; align-items:center; padding:0 20px; height:36px;
+  background:var(--bg2); border-bottom:1px solid var(--border);
+  flex-shrink:0; gap:0; overflow-x:auto;
+}
+.stage {
+  display:flex; align-items:center; gap:7px; padding:0 12px; height:36px;
+  font-size:9px; text-transform:uppercase; letter-spacing:0.13em; color:var(--dimmed);
+  border-bottom:2px solid transparent; cursor:default; white-space:nowrap;
+  transition:all 0.25s var(--ease);
+}
+.stage.active { color:var(--green); border-bottom-color:var(--green); text-shadow:0 0 12px var(--green-glow); }
+.stage.done   { color:var(--green-d); }
+.stage.done .stage-n { background:var(--green); color:#000; border-color:var(--green); box-shadow:0 0 8px var(--green-glow); }
+.stage-n {
+  width:16px;height:16px; border-radius:50%; border:1px solid currentColor;
+  display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:700;
+  transition:all 0.25s var(--ease);
+}
+.sep { color:var(--dimmed); font-size:10px; margin:0 2px; opacity:0.5; }
+
+/* ── PROGRESS ── */
+.prog-bar { height:2px; background:var(--surface2); flex-shrink:0; }
+.prog-fill {
+  height:100%; width:0%;
+  background:linear-gradient(90deg,var(--green-d),var(--green));
+  box-shadow:0 0 8px var(--green-glow);
+  transition:width 0.4s var(--ease);
+}
+
+/* ── MAIN ── */
+.main { display:flex; flex:1; overflow:hidden; }
+
+/* ── LEFT ── */
+.left {
+  width:272px; flex-shrink:0; display:flex; flex-direction:column;
+  border-right:1px solid var(--border); background:var(--bg2); overflow:hidden;
+}
+
+/* ── PANEL HDR ── */
+.panel-hdr {
+  padding:8px 12px; border-bottom:1px solid var(--border);
+  font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:var(--muted);
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--surface); flex-shrink:0;
+}
+.panel-hdr-title { display:flex; align-items:center; gap:8px; }
+.ph-accent { width:2px;height:12px;background:var(--green);border-radius:2px;box-shadow:0 0 6px var(--green-glow); }
+.ph-action {
+  background:none; border:1px solid var(--border2); color:var(--muted);
+  font-family:var(--mono); font-size:8px; padding:3px 8px; border-radius:3px;
+  cursor:pointer; text-transform:uppercase; letter-spacing:0.08em; transition:all 0.15s;
+}
+.ph-action:hover { border-color:var(--border3); color:var(--green); }
+.corner-tag { font-size:8px; color:var(--dimmed); letter-spacing:0.1em; opacity:0.5; }
+
+/* ── INPUTS ── */
+.input-area { padding:12px 12px 8px; }
+.field+.field { margin-top:8px; }
+.flabel {
+  font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);
+  margin-bottom:5px; display:flex; align-items:center; gap:6px;
+}
+.flabel::before { content:'//'; color:var(--green); font-size:8px; opacity:0.6; }
+
+input[type=text],textarea {
+  width:100%; background:var(--surface2); border:1px solid var(--border2);
+  border-radius:var(--r6); padding:7px 10px; color:var(--text);
+  font-family:var(--mono); font-size:11px; outline:none;
+  transition:all 0.2s var(--ease); caret-color:var(--green);
+}
+input[type=text]:focus,textarea:focus {
+  border-color:var(--green);
+  box-shadow:0 0 0 3px rgba(0,255,136,0.1),0 0 16px rgba(0,255,136,0.05);
+  background:var(--surface3);
+}
+input[type=text]::placeholder,textarea::placeholder { color:var(--dimmed); }
+textarea { resize:none; line-height:1.5; }
+
+/* ── BUTTONS ── */
+.btn {
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  width:100%; padding:8px 12px; border-radius:var(--r6);
+  font-family:var(--mono); font-size:10px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  cursor:pointer; transition:all 0.2s var(--ease); border:1px solid;
+  margin-top:6px; position:relative; overflow:hidden;
+}
+.btn::before {
+  content:''; position:absolute; inset:0; opacity:0;
+  transition:opacity 0.2s var(--ease);
+  background:linear-gradient(135deg,rgba(255,255,255,0.05),transparent);
+}
+.btn:hover:not(:disabled)::before { opacity:1; }
+.btn-green { background:rgba(0,255,136,0.1); border-color:var(--green); color:var(--green); }
+.btn-green:hover:not(:disabled) { background:rgba(0,255,136,0.18); box-shadow:0 0 16px rgba(0,255,136,0.15),inset 0 0 12px rgba(0,255,136,0.05); text-shadow:0 0 10px var(--green-glow); }
+.btn-blue  { background:rgba(77,184,255,0.08); border-color:rgba(77,184,255,0.4); color:var(--blue); }
+.btn-blue:hover:not(:disabled)  { background:rgba(77,184,255,0.15); box-shadow:0 0 12px rgba(77,184,255,0.15); }
+.btn-orange{ background:rgba(255,204,0,0.08); border-color:rgba(255,204,0,0.35); color:var(--yellow); }
+.btn-orange:hover:not(:disabled){ background:rgba(255,204,0,0.15); box-shadow:0 0 12px rgba(255,204,0,0.15); }
+.btn-red   { background:rgba(255,61,90,0.08); border-color:rgba(255,61,90,0.35); color:var(--red); }
+.btn-red:hover:not(:disabled)   { background:rgba(255,61,90,0.15); box-shadow:0 0 12px rgba(255,61,90,0.2); }
+.btn-purple{ background:rgba(191,158,255,0.08); border-color:rgba(191,158,255,0.35); color:var(--purple); }
+.btn-purple:hover:not(:disabled){ background:rgba(191,158,255,0.15); box-shadow:0 0 12px rgba(191,158,255,0.15); }
+.btn:disabled { opacity:0.25; cursor:not-allowed; }
+
+/* ── STATS — FIXED HEIGHT, NO STRETCH ── */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* Back to your original 4 columns */
+  gap: 1px;
+  background: var(--border);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.stat {
+  background: var(--s1); /* Restored to original darker background */
+  padding: 10px 8px;
+  text-align: center;
+  transition: all 0.2s ease; /* Added for the hover effect */
+  cursor: default;
+}
+
+/* The "Nice" Hover effect you requested */
+.stat:hover {
+  background: var(--s2); /* Lights up the box slightly */
+  transform: translateY(-2px); /* Subtle lift */
+  z-index: 5;
+}
+
+.stat-n {
+  font-size: 20px; /* Restored to original 20px */
+  font-weight: 700;
+  display: block;
+  line-height: 1;
+  transition: all 0.3s ease;
+}
+
+/* Original Static Glows */
+.stat-n.blue   { color: var(--blue);   text-shadow: 0 0 10px rgba(88, 166, 255, 0.3); }
+.stat-n.green  { color: var(--green);  text-shadow: 0 0 10px rgba(63, 185, 80, 0.3); }
+.stat-n.red    { color: var(--red);    text-shadow: 0 0 10px rgba(248, 81, 73, 0.3); }
+.stat-n.yellow { color: var(--yellow); text-shadow: 0 0 10px rgba(210, 153, 34, 0.3); }
+
+/* Enhanced Glows on Hover */
+.stat:hover .stat-n.blue   { text-shadow: 0 0 20px var(--blue); }
+.stat:hover .stat-n.green  { text-shadow: 0 0 20px var(--green); }
+.stat:hover .stat-n.red    { text-shadow: 0 0 20px var(--red); }
+.stat:hover .stat-n.yellow { text-shadow: 0 0 20px var(--yellow); }
+
+.stat-l {
+  font-size: 9px; /* Restored to original 9px */
+  color: var(--muted);
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+/* ── QUICK SCAN SECTION ── */
+.qs-section { border-top:1px solid var(--border); flex-shrink:0; }
+.qs-toggle {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 12px; cursor:pointer; user-select:none;
+  font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);
+  transition:background 0.15s;
+}
+.qs-toggle:hover { background:rgba(0,255,136,0.03); }
+.qs-toggle-label { display:flex; align-items:center; gap:8px; }
+.qs-caret { font-size:8px; transition:transform 0.2s var(--ease); color:var(--green); }
+.qs-caret.open { transform:rotate(90deg); }
+.qs-badge { font-size:8px; padding:1px 5px; border-radius:3px; background:rgba(0,255,136,0.1); color:var(--green); border:1px solid var(--border3); font-weight:700; }
+
+.qs-body { padding:10px 12px 12px; display:none; }
+.qs-body.open { display:block; }
+.qs-result {
+  margin-top:8px; padding:8px 10px; border-radius:var(--r6);
+  border:1px solid var(--border2); background:var(--surface2);
+  font-size:10px; line-height:1.8; display:none;
+}
+.qs-result.show { display:block; }
+.qs-result.vuln { border-color:rgba(255,61,90,0.4); background:rgba(255,61,90,0.04); }
+.qs-result.safe { border-color:rgba(0,255,136,0.3); background:rgba(0,255,136,0.03); }
+
+/* ── BULK PASTE SECTION ── */
+.bulk-section { border-top:1px solid var(--border); flex-shrink:0; }
+.bulk-toggle {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 12px; cursor:pointer; user-select:none;
+  font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);
+  transition:background 0.15s;
+}
+.bulk-toggle:hover { background:rgba(77,184,255,0.03); }
+.bulk-toggle-label { display:flex; align-items:center; gap:8px; }
+.bulk-ph-accent { width:2px;height:10px;background:var(--blue);border-radius:2px;box-shadow:0 0 6px rgba(77,184,255,0.3); }
+.bulk-caret { font-size:8px; transition:transform 0.2s var(--ease); color:var(--blue); }
+.bulk-caret.open { transform:rotate(90deg); }
+.bulk-body { padding:10px 12px 12px; display:none; }
+.bulk-body.open { display:block; }
+
+/* ── CENTER ── */
+.center { flex:1; display:flex; overflow:hidden; border-right:1px solid var(--border); }
+.mid-results { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+/* Agent log: wider now */
+.mid-logs    { width:300px; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; border-left:1px solid var(--border); }
+
+.scroll { flex:1; overflow-y:auto; overflow-x:hidden; }
+
+/* ── LOG ── */
+.log-line {
+  padding:2px 10px; font-size:10px; line-height:1.7;
+  display:flex; gap:8px; align-items:baseline;
+  border-bottom:1px solid rgba(0,255,136,0.02); transition:background 0.1s;
+}
+.log-line:hover { background:rgba(0,255,136,0.02); }
+.log-ts { color:var(--dimmed); font-size:9px; flex-shrink:0; opacity:0.6; }
+.log-msg { word-break:break-all; }
+.l-ok   { color:var(--green); }
+.l-warn { color:var(--yellow); }
+.l-err  { color:var(--red); }
+.l-info { color:var(--blue); }
+.l-hi   { color:var(--text); font-weight:700; }
+
+/* ── RESULT ROWS ── */
+.result-section {
+  padding:8px 12px 3px; font-size:8px; text-transform:uppercase;
+  letter-spacing:0.15em; color:var(--dimmed);
+  border-top:1px solid var(--border); margin-top:4px;
+  display:flex; align-items:center; gap:8px;
+}
+.result-section::after { content:''; flex:1; height:1px; background:var(--border); }
+.result-section:first-child { border-top:none; margin-top:0; }
+
+.row-item {
+  padding:7px 12px; border-bottom:1px solid rgba(0,255,136,0.04);
+  display:flex; align-items:center; gap:8px; cursor:pointer;
+  transition:all 0.15s var(--ease); position:relative;
+}
+.row-item::before {
+  content:''; position:absolute; left:0;top:0;bottom:0; width:2px;
+  background:var(--green); opacity:0; transition:opacity 0.15s;
+}
+.row-item:hover { background:rgba(0,255,136,0.04); }
+.row-item:hover::before { opacity:0.5; }
+.row-item.selected { background:rgba(0,255,136,0.06); }
+.row-item.selected::before { opacity:1; }
+
+.ri-icon { width:18px;height:18px;border-radius:var(--r4);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0; }
+.ri-cname { background:rgba(77,184,255,0.12); color:var(--blue);  border:1px solid rgba(77,184,255,0.2); }
+.ri-dead  { background:rgba(255,61,90,0.1);   color:var(--red);   border:1px solid rgba(255,61,90,0.2); }
+.ri-a     { background:rgba(0,255,136,0.08);  color:var(--green); border:1px solid rgba(0,255,136,0.2); }
+.ri-vuln  { background:rgba(255,61,90,0.12);  color:var(--red);   border:1px solid rgba(255,61,90,0.3); box-shadow:0 0 6px rgba(255,61,90,0.15); }
+.ri-sub   { font-size:11px; flex:1; word-break:break-all; color:var(--text); }
+
+/* ── BADGES ── */
+.badge { font-size:8px; padding:2px 6px; border-radius:3px; flex-shrink:0; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; border:1px solid; }
+.b-vuln { background:var(--red-bg);    color:var(--red);    border-color:rgba(255,61,90,0.35); }
+.b-ok   { background:var(--green-bg);  color:var(--green);  border-color:var(--border3); }
+.b-warn { background:var(--yellow-bg); color:var(--yellow); border-color:rgba(255,204,0,0.3); }
+.b-prov { background:var(--surface3);  color:var(--muted);  border-color:var(--border2); }
+.b-crit { background:rgba(191,158,255,0.1); color:var(--purple); border-color:rgba(191,158,255,0.3); }
+.b-high { background:var(--red-bg);    color:var(--red);    border-color:rgba(255,61,90,0.3); }
+.b-conf { background:rgba(0,255,136,0.12); color:var(--green); border-color:var(--border3); font-weight:700; }
+.b-info { background:var(--blue-bg);   color:var(--blue);   border-color:rgba(77,184,255,0.3); }
+
+/* ── RIGHT / INSPECTOR — narrower ── */
+.right {
+  width:260px; flex-shrink:0; display:flex; flex-direction:column;
+  overflow:hidden; background:var(--bg2);
+}
+
+/* ── DNS LOOKUP TOOL in inspector ── */
+.dns-tool { padding:10px 12px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.dns-tool-row { display:flex; gap:6px; margin-top:6px; }
+.dns-tool-row input { flex:1; }
+.dns-tool-row select {
+  background:var(--surface2); border:1px solid var(--border2); color:var(--muted);
+  font-family:var(--mono); font-size:10px; border-radius:var(--r4); padding:4px 6px;
+  outline:none; cursor:pointer; flex-shrink:0;
+}
+.dns-tool-row select:focus { border-color:var(--green); color:var(--green); }
+.dns-btn {
+  background:rgba(0,255,136,0.08); border:1px solid var(--border3); color:var(--green);
+  font-family:var(--mono); font-size:10px; font-weight:700; padding:0 10px;
+  border-radius:var(--r4); cursor:pointer; flex-shrink:0; white-space:nowrap;
+  transition:all 0.15s;
+}
+.dns-btn:hover { background:rgba(0,255,136,0.16); box-shadow:0 0 10px rgba(0,255,136,0.12); }
+.dns-result {
+  margin-top:8px; background:var(--surface3); border:1px solid var(--border2);
+  border-radius:var(--r4); padding:8px 10px; font-size:10px; line-height:1.8;
+  color:var(--green); font-family:var(--mono); word-break:break-all; display:none;
+}
+.dns-result.show { display:block; }
+
+.detail-empty {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  height:100%; gap:12px; color:var(--dimmed); font-size:11px; text-align:center; padding:24px;
+}
+.detail-icon {
+  width:50px;height:50px; border-radius:50%; border:1px solid var(--border2);
+  display:flex; align-items:center; justify-content:center; font-size:18px;
+  opacity:0.4; margin-bottom:4px; animation:pulse-slow 3s ease infinite;
+}
+@keyframes pulse-slow { 0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,0)} 50%{box-shadow:0 0 0 8px rgba(0,255,136,0.05)} }
+
+.detail-section { padding:10px 12px; border-bottom:1px solid var(--border); }
+.detail-title {
+  font-size:8px; text-transform:uppercase; letter-spacing:0.14em; color:var(--dimmed);
+  margin-bottom:8px; display:flex; align-items:center; gap:6px;
+}
+.detail-title::before { content:'▸'; color:var(--green); font-size:8px; }
+.drow { display:grid; grid-template-columns:80px 1fr; gap:5px; padding:3px 0; font-size:10px; }
+.dk { color:var(--muted); font-size:9px; padding-top:1px; }
+.dv { word-break:break-all; color:var(--text); }
+.dv.green  { color:var(--green); }
+.dv.red    { color:var(--red); }
+.dv.blue   { color:var(--blue); }
+.dv.yellow { color:var(--yellow); }
+
+/* ── CODE BLOCK ── */
+.code-block {
+  background:var(--surface3); border:1px solid var(--border2); border-radius:var(--r6);
+  padding:8px 10px; font-size:10px; line-height:1.9; color:var(--green);
+  font-family:var(--mono); position:relative; overflow:hidden;
+}
+.code-block::before {
+  content:''; position:absolute; top:0;left:0;right:0; height:1px;
+  background:linear-gradient(90deg,var(--green),transparent); opacity:0.4;
+}
+
+/* ── ACTION BTN ── */
+.action-btn {
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; padding:8px; border-radius:var(--r6); font-family:var(--mono);
+  font-size:10px; font-weight:700; letter-spacing:0.08em; cursor:pointer; border:1px solid;
+  transition:all 0.2s var(--ease); text-transform:uppercase;
+}
+.action-btn-green { background:rgba(0,255,136,0.08); border-color:var(--green); color:var(--green); }
+.action-btn-green:hover { background:rgba(0,255,136,0.15); box-shadow:0 0 16px rgba(0,255,136,0.15); text-shadow:0 0 8px var(--green-glow); }
+
+/* ── SPINNER ── */
+.spinner { display:inline-block; width:10px;height:10px; border:2px solid rgba(0,255,136,0.15); border-top-color:var(--green); border-radius:50%; animation:spin 0.6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align:center; padding:40px 20px; color:var(--dimmed); font-size:11px; }
+.empty-state-icon { font-size:28px; margin-bottom:10px; display:block; opacity:0.2; }
+
+/* ── MODAL ── */
+.modal-bg {
+  position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px);
+  z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px;
+  animation:fadeIn 0.2s var(--ease);
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.modal {
+  background:var(--surface); border:1px solid var(--border3); border-radius:12px;
+  max-width:700px; width:100%; max-height:86vh; display:flex; flex-direction:column;
+  box-shadow:0 0 60px rgba(0,255,136,0.08),0 32px 80px rgba(0,0,0,0.8);
+  animation:slideUp 0.25s var(--ease); overflow:hidden;
+}
+@keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+.modal-hdr {
+  padding:14px 18px; border-bottom:1px solid var(--border2);
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0; background:var(--surface2);
+}
+.modal-title { font-family:var(--display); font-size:14px; font-weight:800; color:var(--green); letter-spacing:0.06em; text-shadow:0 0 12px var(--green-glow); }
+.modal-close { background:none; border:1px solid var(--border2); color:var(--muted); font-size:16px; cursor:pointer; line-height:1; padding:4px 8px; border-radius:var(--r4); transition:all 0.2s; }
+.modal-close:hover { border-color:var(--red); color:var(--red); }
+.modal-body { padding:16px; overflow-y:auto; flex:1; }
+.modal-report { background:var(--surface2); border:1px solid var(--border2); border-radius:var(--r8); padding:14px; font-size:11px; line-height:1.9; white-space:pre-wrap; word-break:break-word; color:var(--text); font-family:var(--mono); }
+.modal-footer { padding:12px 18px; border-top:1px solid var(--border2); display:flex; gap:8px; justify-content:flex-end; flex-shrink:0; background:var(--surface2); }
+.modal-btn { padding:7px 16px; border-radius:var(--r6); font-family:var(--mono); font-size:10px; font-weight:700; cursor:pointer; border:1px solid; transition:all 0.2s var(--ease); text-transform:uppercase; letter-spacing:0.08em; }
+.mb-sec { background:none; border-color:var(--border2); color:var(--muted); }
+.mb-sec:hover { border-color:var(--border3); color:var(--green); }
+.mb-pri { background:rgba(0,255,136,0.1); border-color:var(--green); color:var(--green); }
+.mb-pri:hover { background:rgba(0,255,136,0.18); box-shadow:0 0 12px var(--green-glow); }
+
+/* ── ROW ANIM ── */
+.row-item { animation:rowIn 0.15s var(--ease) both; }
+@keyframes rowIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+
+/* ── DIVIDER ── */
+.section-divider { height:1px; background:var(--border); margin:8px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    TAKEOVER<em>.HUNTER</em>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-stat">SUBS <span id="hsSubs">0</span></div>
+    <div class="hdr-stat">CNAMES <span id="hsCname">0</span></div>
+    <div class="hdr-stat">VULNS <span id="hsVuln" style="color:var(--red)">0</span></div>
+    <div class="status-chip" id="statusChip">
+      <div class="status-led"></div>
+      <span id="statusText">IDLE</span>
+    </div>
+  </div>
+</header>
+
+<!-- STAGE BAR -->
+<div class="stage-bar">
+  <div class="stage active" id="stage1"><div class="stage-n">1</div>Enumerate</div>
+  <div class="sep">›</div>
+  <div class="stage" id="stage2"><div class="stage-n">2</div>DNS Triage</div>
+  <div class="sep">›</div>
+  <div class="stage" id="stage3"><div class="stage-n">3</div>Vuln Scan</div>
+  <div class="sep">›</div>
+  <div class="stage" id="stage4"><div class="stage-n">4</div>Verify</div>
+  <div class="sep">›</div>
+  <div class="stage" id="stage5"><div class="stage-n">⚡</div>Quick Scan</div>
+</div>
+
+<!-- PROGRESS -->
+<div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="panel-hdr">
+      <div class="panel-hdr-title"><div class="ph-accent"></div>Target Config</div>
+      <span class="corner-tag">v3.0</span>
+    </div>
+
+    <div class="input-area">
+      <div class="field">
+        <div class="flabel">Domain</div>
+        <input type="text" id="targetInput" placeholder="example.com" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <div class="flabel">H1 Username</div>
+        <input type="text" id="h1user" value="stickybugger" autocomplete="off">
+      </div>
+      <button class="btn btn-green" id="btnEnum" onclick="startEnum()"><span>▶</span> Start Enumeration</button>
+      <button class="btn btn-blue"  id="btnScan" onclick="startScan()" disabled><span>⚡</span> Scan CNAMEs</button>
+      <button class="btn btn-orange" id="btnVerify" onclick="startVerify()" disabled><span>✓</span> Verify Findings</button>
+    </div>
+
+    <!-- STATS — fixed height, 2x2 grid -->
+    <div class="stats">
+      <div class="stat"><span class="stat-n c-blue"   id="sSubs">0</span><div class="stat-l">Subdomains</div></div>
+      <div class="stat"><span class="stat-n c-green"  id="sCname">0</span><div class="stat-l">CNAMEs</div></div>
+      <div class="stat"><span class="stat-n c-red"    id="sDead">0</span><div class="stat-l">Dead</div></div>
+      <div class="stat"><span class="stat-n c-yellow" id="sVuln">0</span><div class="stat-l">Vulns</div></div>
+    </div>
+
+    <!-- QUICK SCAN -->
+    <div class="qs-section">
+      <div class="qs-toggle" onclick="toggleQS()">
+        <div class="qs-toggle-label">
+          <div class="ph-accent" style="background:var(--red);box-shadow:0 0 6px var(--red-glow)"></div>
+          Quick Scan
+          <span class="qs-badge">INSTANT</span>
+        </div>
+        <span class="qs-caret" id="qsCaret">›</span>
+      </div>
+      <div class="qs-body" id="qsBody">
+        <div class="field">
+          <div class="flabel">Subdomain</div>
+          <input type="text" id="qsSub" placeholder="dev.example.com" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <div class="flabel">CNAME Target</div>
+          <input type="text" id="qsCname" placeholder="orphaned.s3.amazonaws.com" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn btn-red" onclick="runQuickScan()" id="btnQS"><span>🔍</span> Check Vulnerability</button>
+        <div class="qs-result" id="qsResult"></div>
+      </div>
+    </div>
+
+    <!-- BULK PASTE -->
+    <div class="bulk-section">
+      <div class="bulk-toggle" onclick="toggleBulk()">
+        <div class="bulk-toggle-label">
+          <div class="bulk-ph-accent"></div>
+          Bulk CNAME Paste
+        </div>
+        <span class="bulk-caret" id="bulkCaret">›</span>
+      </div>
+      <div class="bulk-body" id="bulkBody">
+        <div class="field">
+          <div class="flabel">Raw CNAMEs (one per line)</div>
+          <textarea id="bulkInput" rows="4" placeholder="sub1.example.com&#10;sub2.example.com"></textarea>
+        </div>
+        <button class="btn btn-purple" onclick="runBulkScan()"><span>⚡</span> Bulk Scan</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER -->
+  <div class="center">
+
+    <!-- RESULTS -->
+    <div class="mid-results">
+      <div class="panel-hdr">
+        <div class="panel-hdr-title"><div class="ph-accent"></div><span id="centerTitle">Results</span></div>
+        <button class="ph-action" id="btnExport" onclick="exportResults()" style="display:none">Export JSON</button>
+      </div>
+      <div class="scroll" id="resultsBox">
+        <div class="empty-state">
+          <span class="empty-state-icon">◎</span>
+          Enter a target domain and click Start Enumeration
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENT LOG — wider -->
+    <div class="mid-logs">
+      <div class="panel-hdr">
+        <div class="panel-hdr-title"><div class="ph-accent"></div>Agent Log</div>
+        <button class="ph-action" onclick="clearLog()">Clear</button>
+      </div>
+      <div class="scroll" id="logBox" style="padding:4px 0"></div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: Inspector — narrower -->
+  <div class="right">
+    <!-- DNS Lookup Tool -->
+    
+    <div class="scroll" id="detailBox">
+      <div class="detail-empty">
+        <div class="detail-icon">◎</div>
+        <div>Select a result to inspect</div>
+        <div style="font-size:9px;opacity:0.6;margin-top:4px">Click any row in results panel</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- REPORT MODAL -->
+<div class="modal-bg" id="reportModal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">⚡ H1 Report — Ready</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <pre class="modal-report" id="modalContent"></pre>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn mb-sec" onclick="closeModal()">Close</button>
+      <button class="modal-btn mb-pri" onclick="copyModalReport()">Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const S = { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[] };
+let logStart = Date.now();
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+const ts = () => `+${((Date.now()-logStart)/1000).toFixed(1)}s`;
+
+function escHtml(s) {
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function log(msg, cls='') {
+  const box = document.getElementById('logBox');
+  const d = document.createElement('div');
+  d.className = 'log-line';
+  d.innerHTML = `<span class="log-ts">${ts()}</span><span class="log-msg ${cls}">${escHtml(msg)}</span>`;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() { document.getElementById('logBox').innerHTML = ''; logStart = Date.now(); }
+
+function setStatus(text, mode='') {
+  const chip = document.getElementById('statusChip');
+  chip.className = 'status-chip ' + mode;
+  document.getElementById('statusText').textContent = text;
+}
+
+function setStage(n) {
+  [1,2,3,4,5].forEach(i => {
+    const el = document.getElementById('stage'+i);
+    if (!el) return;
+    if (i < n) el.className = 'stage done';
+    else if (i === n) el.className = 'stage active';
+    else el.className = 'stage';
+  });
+}
+
+function setProgress(done, total) {
+  document.getElementById('progFill').style.width = total > 0 ? (done/total*100)+'%' : '0%';
+}
+
+function setStat(id, val) {
+  document.getElementById(id).textContent = val;
+  const map = { sSubs:'hsSubs', sCname:'hsCname', sVuln:'hsVuln' };
+  if (map[id]) document.getElementById(map[id]).textContent = val;
+}
+
+// ─── COLLAPSIBLES ────────────────────────────────────────────────────────────
+function toggleQS() {
+  const body = document.getElementById('qsBody');
+  const caret = document.getElementById('qsCaret');
+  const open = body.classList.toggle('open');
+  caret.classList.toggle('open', open);
+}
+
+function toggleBulk() {
+  const body = document.getElementById('bulkBody');
+  const caret = document.getElementById('bulkCaret');
+  const open = body.classList.toggle('open');
+  caret.classList.toggle('open', open);
+}
+
+// ─── SSE HELPER ──────────────────────────────────────────────────────────────
+function listenSSE(url, options, handlers) {
+  return new Promise((resolve, reject) => {
+    fetch(url, options).then(res => {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      function pump() {
+        reader.read().then(({ done, value }) => {
+          if (done) { resolve(); return; }
+          buffer += decoder.decode(value, { stream:true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop();
+          for (const part of parts) {
+            const lines = part.split('\n');
+            let event = 'message', data = '';
+            for (const line of lines) {
+              if (line.startsWith('event: ')) event = line.slice(7);
+              if (line.startsWith('data: '))  data  = line.slice(6);
+            }
+            if (data && handlers[event]) { try { handlers[event](JSON.parse(data)); } catch(e) {} }
+            if (event === 'done' || event === 'error') { resolve(); return; }
+          }
+          pump();
+        }).catch(reject);
+      }
+      pump();
+    }).catch(reject);
+  });
+}
+
+// ─── ENUMERATE ───────────────────────────────────────────────────────────────
+async function startEnum() {
+  const target = document.getElementById('targetInput').value.trim();
+  if (!target) { alert('Enter a target domain.'); return; }
+
+  logStart = Date.now();
+  Object.assign(S, { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[] });
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('resultsBox').innerHTML =
+    '<div class="empty-state"><div class="spinner" style="width:14px;height:14px;margin:0 auto 10px"></div>Enumerating subdomains...</div>';
+  document.getElementById('btnEnum').disabled = true;
+  document.getElementById('btnScan').disabled = true;
+  document.getElementById('btnVerify').disabled = true;
+  document.getElementById('btnExport').style.display = 'none';
+
+  setStage(1); setStatus('RUNNING','running');
+  ['sSubs','sCname','sDead','sVuln'].forEach(id => setStat(id, 0));
+  setProgress(0,1);
+
+  log(`Target: ${target}`, 'l-hi');
+  log('Starting subdomain enumeration...', 'l-info');
+
+  await listenSSE(`/api/enumerate?target=${encodeURIComponent(target)}`, {}, {
+    log:   d => log(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':d.level==='err'?'l-err':'l-info'),
+    done:  d => { S.subdomains = d.subdomains; setStat('sSubs', d.count); log(`Enumeration done: ${d.count} subdomains`, 'l-ok'); },
+    error: d => log('Error: '+d.msg, 'l-err'),
+  });
+
+  setProgress(1,1); log('Running DNS triage...','l-info');
+  setStage(2); setStatus('TRIAGING','running');
+
+  await listenSSE('/api/triage', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ subdomains: S.subdomains }),
+  }, {
+    progress: d => setProgress(d.done, d.total),
+    done: d => {
+      S.cnames = d.cname||[]; S.dead = d.dead||[]; S.aRecords = d.a||[];
+      setStat('sCname', S.cnames.length); setStat('sDead', S.dead.length);
+      log(`Triage — ${S.cnames.length} CNAMEs · ${S.dead.length} dead · ${S.aRecords.length} A`, 'l-ok');
+    },
+    error: d => log('Triage error: '+d.msg, 'l-err'),
+  });
+
+  renderResults();
+  document.getElementById('btnEnum').disabled = false;
+  document.getElementById('btnScan').disabled = S.cnames.length === 0;
+  document.getElementById('btnExport').style.display = '';
+  setStatus('TRIAGED','ok'); setStage(3);
+}
+
+// ─── SCAN ────────────────────────────────────────────────────────────────────
+async function startScan() {
+  if (!S.cnames.length) return;
+  document.getElementById('btnScan').disabled = true;
+  document.getElementById('btnVerify').disabled = true;
+  S.vulnerable = []; setStat('sVuln', 0);
+  setStatus('SCANNING','scanning');
+  log(`Scanning ${S.cnames.length} CNAMEs for takeover vulns...`, 'l-info');
+
+  await listenSSE('/api/scan', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ cname_records: S.cnames }),
+  }, {
+    progress: d => setProgress(d.done, d.total),
+    vuln: d => {
+      S.vulnerable.push(d); setStat('sVuln', S.vulnerable.length);
+      log(`⚠ VULN: ${d.sub} [${d.severity}][${d.confidence}]`, 'l-warn');
+    },
+    done: d => log(`Scan complete — ${d.count} vulnerable`, d.count > 0 ? 'l-warn' : 'l-ok'),
+    error: d => log('Scan error: '+d.msg, 'l-err'),
+  });
+
+  renderResults();
+  document.getElementById('btnScan').disabled = false;
+  document.getElementById('btnVerify').disabled = S.vulnerable.length === 0;
+  setStatus(S.vulnerable.length > 0 ? `${S.vulnerable.length} VULNS` : 'CLEAN',
+            S.vulnerable.length > 0 ? 'vulns' : 'ok');
+  setProgress(1,1);
+}
+
+// ─── VERIFY ──────────────────────────────────────────────────────────────────
+async function startVerify() {
+  if (!S.vulnerable.length) return;
+  document.getElementById('btnVerify').disabled = true;
+  S.verified = []; setStatus('VERIFYING','scanning'); setStage(4);
+  log(`Verifying ${S.vulnerable.length} finding(s)...`, 'l-info');
+
+  await listenSSE('/api/verify', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ vulnerable: S.vulnerable }),
+  }, {
+    log:      d => log(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':'l-info'),
+    verified: d => {
+      S.verified.push(d);
+      log(d.verified ? `✓ CONFIRMED: ${d.sub}` : `✗ Not confirmed: ${d.sub}`,
+          d.verified ? 'l-ok' : 'l-warn');
+    },
+    done: d => {
+      const conf = d.verified.filter(v=>v.verified).length;
+      log(`Verification done — ${conf}/${d.verified.length} confirmed`, conf>0?'l-ok':'l-warn');
+    },
+    error: d => log('Verify error: '+d.msg, 'l-err'),
+  });
+
+  renderResults();
+  document.getElementById('btnVerify').disabled = false;
+  const confirmed = S.verified.filter(v=>v.verified).length;
+  setStatus(`${confirmed} CONFIRMED`, confirmed>0?'ok':'');
+  setProgress(1,1); setStage(5);
+}
+
+// ─── QUICK SCAN ──────────────────────────────────────────────────────────────
+async function runQuickScan() {
+  const sub   = document.getElementById('qsSub').value.trim();
+  const cname = document.getElementById('qsCname').value.trim();
+  if (!cname) { alert('Enter a CNAME target.'); return; }
+
+  const btn = document.getElementById('btnQS');
+  const res = document.getElementById('qsResult');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Checking...';
+  res.className = 'qs-result show';
+  res.innerHTML = '<span style="color:var(--muted)">Probing...</span>';
+
+  setStage(5); setStatus('QUICK SCAN','scanning');
+  log(`Quick scan: ${cname}`, 'l-hi');
+
+  try {
+    const r = await fetch('/api/quickscan', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sub: sub || cname, cname }),
+    });
+    const data = await r.json();
+
+    if (data.vulnerable) {
+      res.className = 'qs-result show vuln';
+      res.innerHTML = `
+        <div style="color:var(--red);font-weight:700;margin-bottom:6px">⚠ VULNERABLE — ${escHtml(data.provider)}</div>
+        <div style="color:var(--muted)">NXDOMAIN: <span style="color:${data.nxdomain?'var(--green)':'var(--red)'}">${data.nxdomain?'YES':'NO'}</span></div>
+        <div style="color:var(--muted)">HTTP: <span style="color:var(--yellow)">${data.http_code}</span></div>
+        <div style="color:var(--muted)">Confidence: <span style="color:var(--green)">${(data.confidence||'').toUpperCase()}</span></div>
+        <div style="color:var(--muted)">Severity: <span style="color:var(--red)">${data.severity}</span></div>
+        ${data.body_match?`<div style="color:var(--muted)">Match: <span style="color:var(--green)">"${escHtml(data.match_string)}"</span></div>`:''}
+      `;
+      log(`⚠ QUICK SCAN VULN: ${cname} → ${data.provider} [${data.severity}]`, 'l-warn');
+      // Inject into vulnerable list for report gen
+      if (!S.vulnerable.find(v=>v.cname===cname)) S.vulnerable.push(data);
+      setStat('sVuln', S.vulnerable.length);
+    } else {
+      res.className = 'qs-result show safe';
+      res.innerHTML = `
+        <div style="color:var(--green);font-weight:700;margin-bottom:6px">✓ NOT VULNERABLE</div>
+        <div style="color:var(--muted)">Provider: <span style="color:var(--text)">${escHtml(data.provider||'Unknown')}</span></div>
+        <div style="color:var(--muted)">NXDOMAIN: <span style="color:var(--red)">${data.nxdomain?'YES':'NO'}</span></div>
+        <div style="color:var(--muted)">HTTP: <span style="color:var(--yellow)">${data.http_code}</span></div>
+      `;
+      log(`✓ Quick scan clean: ${cname}`, 'l-ok');
+    }
+  } catch(e) {
+    res.innerHTML = `<span style="color:var(--red)">Error: ${escHtml(e.message)}</span>`;
+    log('Quick scan error: '+e.message, 'l-err');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>🔍</span> Check Vulnerability';
+  setStatus('IDLE','');
+}
+
+// ─── BULK SCAN ───────────────────────────────────────────────────────────────
+async function runBulkScan() {
+  const raw = document.getElementById('bulkInput').value.trim();
+  if (!raw) { alert('Paste subdomain list first.'); return; }
+
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  // Build fake cname_records — treat each line as sub = cname (user can paste sub SPACE cname too)
+  const records = lines.map(line => {
+    const parts = line.split(/\s+/);
+    return { sub: parts[0], cname: parts[1] || parts[0], provider:'Unknown', takeover_possible:true };
+  });
+
+  // Merge into S.cnames temporarily and run scan
+  S.cnames = records;
+  setStat('sCname', records.length);
+  log(`Bulk scan: ${records.length} entries`, 'l-hi');
+  await startScan();
+}
+
+// ─── DNS LOOKUP ──────────────────────────────────────────────────────────────
+async function runDnsLookup() {
+  const host = document.getElementById('dnsHost').value.trim();
+  const type = document.getElementById('dnsType').value;
+  if (!host) { alert('Enter a hostname.'); return; }
+
+  const res = document.getElementById('dnsResult');
+  res.className = 'dns-result show';
+  res.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const r = await fetch('/api/dns', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ host, type }),
+    });
+    const data = await r.json();
+    if (data.records && data.records.length) {
+      res.innerHTML = data.records.map(rec => `<div>${escHtml(rec)}</div>`).join('');
+    } else if (data.error) {
+      res.innerHTML = `<span style="color:var(--red)">${escHtml(data.error)}</span>`;
+    } else {
+      res.innerHTML = `<span style="color:var(--muted)">No records found</span>`;
+    }
+    log(`DNS ${type} ${host}: ${data.records?.length||0} records`, 'l-info');
+  } catch(e) {
+    res.innerHTML = `<span style="color:var(--red)">Error: ${escHtml(e.message)}</span>`;
+  }
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function renderResults() {
+  const box = document.getElementById('resultsBox');
+  box.innerHTML = '';
+
+  const verifiedMap = {};
+  S.verified.forEach(v => verifiedMap[v.sub] = v);
+  const vulnMap = {};
+  S.vulnerable.forEach(v => vulnMap[v.sub] = v);
+
+  if (S.vulnerable.length > 0) {
+    addSection(box, `⚠ Vulnerable (${S.vulnerable.length})`);
+    S.vulnerable.forEach(v => {
+      const vd = verifiedMap[v.sub];
+      const isConf = vd && vd.verified;
+      const row = mkRow();
+      row.innerHTML = `
+        <div class="ri-icon ri-vuln">!</div>
+        <div class="ri-sub">${escHtml(v.sub)}</div>
+        <span class="badge b-prov">${escHtml(v.provider)}</span>
+        <span class="badge b-${v.severity==='Critical'?'crit':'high'}">${v.severity}</span>
+        ${isConf?'<span class="badge b-conf">✓</span>':''}
+      `;
+      row.onclick = () => showVulnDetail(v, vd||null);
+      box.appendChild(row);
+    });
+  }
+
+  const safeC = S.cnames.filter(c => !vulnMap[c.sub]);
+  if (safeC.length > 0) {
+    addSection(box, `CNAMEs (${safeC.length})`);
+    safeC.forEach(c => {
+      const row = mkRow();
+      row.innerHTML = `
+        <div class="ri-icon ri-cname">C</div>
+        <div class="ri-sub">${escHtml(c.sub)}</div>
+        <span class="badge b-prov">${escHtml(c.provider)}</span>
+        ${c.takeover_possible?'<span class="badge b-warn">POSSIBLE</span>':''}
+      `;
+      row.onclick = () => showCnameDetail(c);
+      box.appendChild(row);
+    });
+  }
+
+  if (S.dead.length > 0) {
+    addSection(box, `Dead Records (${S.dead.length})`);
+    S.dead.forEach(d => {
+      const row = mkRow();
+      row.innerHTML = `
+        <div class="ri-icon ri-dead">✗</div>
+        <div class="ri-sub">${escHtml(d.sub)}</div>
+        <span class="badge b-vuln">DEAD</span>
+      `;
+      row.onclick = () => showDeadDetail(d);
+      box.appendChild(row);
+    });
+  }
+
+  if (S.aRecords.length > 0) {
+    addSection(box, `A Records (${S.aRecords.length})`);
+    S.aRecords.forEach(a => {
+      const row = mkRow();
+      row.innerHTML = `
+        <div class="ri-icon ri-a">A</div>
+        <div class="ri-sub">${escHtml(a.sub)}</div>
+        <span class="badge b-ok">${escHtml(a.ips[0]||'')}</span>
+      `;
+      row.onclick = () => showADetail(a);
+      box.appendChild(row);
+    });
+  }
+
+  document.getElementById('centerTitle').textContent =
+    `Results — ${S.subdomains.length} subs · ${S.cnames.length} CNAMEs · ${S.dead.length} dead`;
+}
+
+function addSection(box, text) {
+  const s = document.createElement('div');
+  s.className = 'result-section';
+  s.textContent = text;
+  box.appendChild(s);
+}
+
+function mkRow() {
+  const r = document.createElement('div');
+  r.className = 'row-item';
+  return r;
+}
+
+// ─── DETAIL VIEWS ────────────────────────────────────────────────────────────
+function showVulnDetail(vuln, verified) {
+  const isConf = verified && verified.verified;
+  document.getElementById('detailBox').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-title">Vuln Finding</div>
+      <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(vuln.sub)}</div></div>
+      <div class="drow"><div class="dk">CNAME</div><div class="dv blue">${escHtml(vuln.cname)}</div></div>
+      <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(vuln.provider)}</div></div>
+      <div class="drow"><div class="dk">NXDOMAIN</div><div class="dv ${vuln.nxdomain?'green':'red'}">${vuln.nxdomain?'YES — dangling':'NO'}</div></div>
+      <div class="drow"><div class="dk">HTTP</div><div class="dv yellow">${vuln.http_code}</div></div>
+      <div class="drow"><div class="dk">Body match</div><div class="dv ${vuln.body_match?'green':'red'}">${vuln.body_match?'✓ '+escHtml(vuln.match_string||''):'No'}</div></div>
+      <div class="drow"><div class="dk">Confidence</div><div class="dv ${vuln.confidence==='high'?'green':vuln.confidence==='medium'?'yellow':'red'}">${(vuln.confidence||'').toUpperCase()}</div></div>
+      <div class="drow"><div class="dk">Severity</div><div class="dv ${vuln.severity==='Critical'?'blue':'red'}">${vuln.severity}</div></div>
+    </div>
+    ${verified?`
+    <div class="detail-section">
+      <div class="detail-title">Verification</div>
+      <div class="drow"><div class="dk">NXDOMAIN #1</div><div class="dv ${verified.verify_nxdomain_1?'green':'red'}">${verified.verify_nxdomain_1?'YES':'NO'}</div></div>
+      <div class="drow"><div class="dk">NXDOMAIN #2</div><div class="dv ${verified.verify_nxdomain_2?'green':'red'}">${verified.verify_nxdomain_2?'YES':'NO'}</div></div>
+      <div class="drow"><div class="dk">HTTP probe</div><div class="dv">${verified.verify_http}</div></div>
+      <div class="drow"><div class="dk">CNAME live</div><div class="dv ${verified.cname_still_present?'green':'red'}">${verified.cname_still_present?'YES':'NO'}</div></div>
+      <div class="drow"><div class="dk">Status</div><div class="dv ${isConf?'green':'yellow'}" style="font-weight:700">${isConf?'✓ CONFIRMED':'⚠ UNCONFIRMED'}</div></div>
+    </div>`:''}
+    <div class="detail-section">
+      <div class="detail-title">Commands</div>
+      <div class="code-block">
+dig ${escHtml(vuln.sub)} CNAME +short<br>
+dig @8.8.8.8 ${escHtml(vuln.cname)}<br>
+curl -sk -w "%{http_code}" https://${escHtml(vuln.sub)}
+      </div>
+    </div>
+    ${isConf?`
+    <div class="detail-section">
+      <button class="action-btn action-btn-green" onclick="showReportForSub('${escHtml(vuln.sub)}')">
+        ⚡ Generate H1 Report
+      </button>
+    </div>`:''}
+  `;
+}
+
+function showCnameDetail(c) {
+  document.getElementById('detailBox').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-title">CNAME Record</div>
+      <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(c.sub)}</div></div>
+      <div class="drow"><div class="dk">CNAME</div><div class="dv blue">${escHtml(c.cname)}</div></div>
+      <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(c.provider)}</div></div>
+      <div class="drow"><div class="dk">Takeover?</div><div class="dv ${c.takeover_possible?'yellow':'green'}">${c.takeover_possible?'Possible':'Safe'}</div></div>
+    </div>
+    <div class="detail-section">
+      <div class="code-block">dig ${escHtml(c.sub)} CNAME +short</div>
+    </div>
+    ${c.takeover_possible?`
+    <div class="detail-section">
+      <button class="action-btn action-btn-green" onclick="document.getElementById('qsSub').value='${escHtml(c.sub)}';document.getElementById('qsCname').value='${escHtml(c.cname)}';if(!document.getElementById('qsBody').classList.contains('open'))toggleQS();">
+        ⚡ Quick Scan This
+      </button>
+    </div>`:''}
+  `;
+}
+
+function showDeadDetail(d) {
+  document.getElementById('detailBox').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-title">Dead Record</div>
+      <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(d.sub)}</div></div>
+      <div class="drow"><div class="dk">DNS</div><div class="dv red">No A or CNAME</div></div>
+    </div>
+    <div class="detail-section" style="font-size:10px;color:var(--muted);line-height:1.8">
+      No DNS resolution. May be previously active — worth manual investigation.
+    </div>
+    <div class="detail-section">
+      <div class="code-block">dig ${escHtml(d.sub)} ANY +short</div>
+    </div>
+  `;
+}
+
+function showADetail(a) {
+  document.getElementById('detailBox').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-title">A Record</div>
+      <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(a.sub)}</div></div>
+      <div class="drow"><div class="dk">IPs</div><div class="dv green">${(a.ips||[]).join(', ')}</div></div>
+    </div>
+    <div class="detail-section">
+      <div class="code-block">dig ${escHtml(a.sub)} A +short</div>
+    </div>
+  `;
+}
+
+// ─── REPORT ──────────────────────────────────────────────────────────────────
+function findFindingBySub(sub) {
+  return S.verified.find(v=>v.sub===sub) || S.vulnerable.find(v=>v.sub===sub) || null;
+}
+
+async function showReportForSub(sub) {
+  const finding = findFindingBySub(sub);
+  if (!finding) { alert('No finding data — try re-verifying.'); return; }
+  const h1 = document.getElementById('h1user').value.trim() || 'stickybugger';
+  const res = await fetch('/api/report', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ finding, h1_user: h1 }),
+  });
+  let data = null;
+  try { data = await res.json(); } catch(e) {}
+  document.getElementById('modalContent').textContent = data?.report || data?.error || 'Failed.';
+  document.getElementById('reportModal').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('reportModal').style.display = 'none'; }
+
+function copyModalReport() {
+  navigator.clipboard.writeText(document.getElementById('modalContent').textContent).then(() => {
+    const btn = document.querySelector('.mb-pri');
+    const o = btn.textContent; btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = o, 1500);
+  });
+}
+
+function exportResults() {
+  const blob = new Blob([JSON.stringify({
+    subdomains:S.subdomains, cnames:S.cnames, dead:S.dead,
+    vulnerable:S.vulnerable, verified:S.verified
+  }, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `takeover-${document.getElementById('targetInput').value}-${Date.now()}.json`;
+  a.click();
+}
+
+// ─── KEY BINDINGS ─────────────────────────────────────────────────────────────
+document.getElementById('targetInput').addEventListener('keydown', e => { if(e.key==='Enter') startEnum(); });
+document.getElementById('qsSub').addEventListener('keydown',   e => { if(e.key==='Enter') runQuickScan(); });
+document.getElementById('qsCname').addEventListener('keydown', e => { if(e.key==='Enter') runQuickScan(); });
+document.getElementById('dnsHost').addEventListener('keydown', e => { if(e.key==='Enter') runDnsLookup(); });
+</script>
+</body>
+</html>
