@@ -1,81 +1,148 @@
-# TAKEOVER.HUNTER — Subdomain Takeover Hunter
+# 🎯 Takeover Hunter
 
-A fully local subdomain takeover hunting tool. No API keys. Real DNS queries.
+A powerful and lightweight **subdomain takeover detection tool** built with Flask and Python. Automatically discovers dangling DNS records pointing to unclaimed cloud resources, exposing critical security vulnerabilities.
 
-## Stack
-- **Backend**: Python / Flask + dnspython + requests
-- **Frontend**: Vanilla HTML/CSS/JS (terminal dark UI)
-- **DNS**: Real `dig`-equivalent queries via dnspython (8.8.8.8 + 1.1.1.1)
+## 🚀 Live Demo
 
-## Fingerprint DB
-30+ providers — Heroku, GitHub Pages, AWS ELB, AWS S3, Azure, Fastly, Netlify,
-Vercel, Shopify, Zendesk, Tumblr, WordPress, Typepad, Acquia, Surge.sh,
-Pantheon, Ghost, SendGrid, Unbounce, Helpjuice, HelpScout, Bitbucket,
-Cargo, StatusPage, Strikingly, Webflow, Fly.io, and more.
+**[Launch Takeover Hunter](https://web-production-88530.up.railway.app)**
 
-## Quick Start (Local)
+## ✨ Features
 
+- **Automated Subdomain Enumeration** — Integrates `subfinder` and `assetfinder` for comprehensive discovery
+- **DNS Intelligence** — Detects CNAME chains, wildcard domains, and NXDOMAIN records
+- **18+ Cloud Provider Signatures** — Identifies vulnerable hosting platforms:
+  - Heroku, GitHub Pages, AWS S3, CloudFront, Azure, Fastly, Netlify, Vercel
+  - Shopify, Webflow, WordPress, Ghost, Tumblr, Zendesk, and more
+- **High-Velocity Scanning** — 30 concurrent workers for fast vulnerability assessment
+- **Real-time Streaming** — Live SSE event updates for long-running scans
+- **Confidence Scoring** — High/Medium/Low confidence ratings with severity classification
+- **Verification System** — Double-checks vulnerabilities before reporting
+- **Professional Reporting** — HackerOne-ready Markdown reports with attack vectors
+
+## 🛠️ Installation
+
+### Local (Emergency Use)
 ```bash
 cd ~/takeover-hunter
-chmod +x run.sh
 bash run.sh
+# Opens on http://localhost:5000
 ```
 
-Then open: http://127.0.0.1:5000
-
-## Pipeline
-
-### Stage 1 — Enumerate
-Runs subfinder + assetfinder + amass (if installed) + DNS brute-force wordlist.
-Resolves which subdomains are live.
-
-### Stage 2 — DNS Triage (runs automatically after enumeration)
-For every subdomain:
-- `CNAME` → resolved and fingerprinted against provider DB
-- `A` → records with IPs
-- `DEAD` → no resolution
-
-### Stage 3 — Scan CNAMEs for Vulns
-Click **⚡ Scan CNAMEs for Vulns** button.
-For each CNAME:
-1. Checks NXDOMAIN on CNAME target
-2. HTTP probe with body fingerprint matching
-3. Classifies: vulnerable / confidence level / severity
-
-### Stage 4 — Verify
-Click **✓ Verify Findings** button.
-Double-checks each vulnerable finding:
-- NXDOMAIN × 2 (anti-flap)
-- CNAME still present
-- HTTP re-probe
-- Outputs: CONFIRMED or NOT CONFIRMED
-
-### Report
-Click any verified finding → **Generate H1 Report**
-Full HackerOne-ready report with CVSS score, steps to reproduce, impact.
-
-## Optional Tools (install for better enumeration)
-
+### With Docker
 ```bash
-# subfinder
-go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-
-# assetfinder
-go install github.com/tomnomnom/assetfinder@latest
-
-# amass
-go install -v github.com/owasp-amass/amass/v4/...@master
+docker build -t takeover-hunter .
+docker run -p 5000:5000 takeover-hunter
 ```
 
-## File Structure
+## 📋 Requirements
+
+- **Python 3.13** (or 3.10+)
+- **pip** (Python package manager)
+- **Optional**: `subfinder`, `assetfinder`, `amass` (Go recon tools)
+
+## 📦 Dependencies
+
+```
+flask>=3.0.0
+dnspython>=2.6.0
+requests>=2.31.0
+urllib3>=2.0.0
+```
+
+## 🔧 Configuration
+
+The app automatically detects and uses optional recon tools:
+- **subfinder** — ProjectDiscovery's subdomain enumeration
+- **assetfinder** — TomNomNom's asset finder
+- **amass** — OWASP Amass for passive reconnaissance
+
+## 📁 Project Structure
+
 ```
 takeover-hunter/
-├── app.py              # Flask backend, DNS logic, fingerprints
-├── templates/
-│   └── index.html      # Full frontend UI
-├── requirements.txt
-├── run.sh              # Local setup script
-├── Procfile            # For Railway deployment
-├── .gitignore
-└── README.md
+├── app.py                 # Core Flask application
+├── requirements.txt       # Python dependencies
+├── Dockerfile            # Docker build configuration
+├── Procfile              # Railway deployment config
+├── run.sh                # Local startup script
+├── README.md             # This file
+└── templates/
+    └── index.html        # Web UI (terminal-dark theme)
 ```
+
+## 🎮 Usage
+
+### Web Interface
+Navigate to the deployed app and use the interactive terminal interface:
+1. **Enumerate** — Discover subdomains for your target
+2. **Triage** — Filter by CNAME records and DNS status
+3. **Scan** — Check each CNAME for takeover vulnerabilities
+4. **Verify** — Confirm vulnerable CNAMEs are genuinely exploitable
+5. **Report** — Generate professional vulnerability reports
+
+### API Endpoints
+
+#### `/api/enumerate?target=example.com`
+Stream subdomain enumeration results
+
+#### `/api/triage` (POST)
+Classify subdomains by CNAME presence
+```json
+{"subdomains": ["api.example.com", "cdn.example.com"]}
+```
+
+#### `/api/scan` (POST)
+Parallel vulnerability scanning
+```json
+{"cname_records": [{"sub": "api.example.com", "cname": "api.heroku.com"}]}
+```
+
+#### `/api/verify` (POST)
+Double-check vulnerable findings
+
+#### `/api/quickscan` (POST)
+Single-subdomain instant assessment
+
+#### `/api/dns` (POST)
+Custom DNS lookups (A, AAAA, CNAME, MX, TXT, NS, SOA, SRV, ANY)
+
+#### `/api/report` (POST)
+Generate HackerOne-formatted reports
+
+## 🚂 Deployment
+
+### Railway
+```bash
+git push heroku main
+```
+Dockerfile and Procfile enable automatic Go tools + dependencies.
+
+### Manual Docker
+```bash
+docker build -t takeover-hunter .
+docker run -p 5000:5000 -e PORT=5000 takeover-hunter
+```
+
+## 🔍 How It Works
+
+1. **Enumeration** — Uses `subfinder` and `assetfinder` to discover subdomains
+2. **DNS Triage** — Resolves CNAME records and identifies delegation patterns
+3. **Fingerprinting** — Matches CNAME targets against known cloud provider patterns
+4. **Vulnerability Check** — Confirms NXDOMAIN + CNAME presence
+5. **HTTP Probing** — Tests status codes and response bodies
+6. **Verification** — Re-checks findings to eliminate false positives
+7. **Reporting** — Generates detailed vulnerability assessments
+
+## ⚠️ Legal Disclaimer
+
+Use this tool **only on systems you have explicit permission to test**. Unauthorized access is illegal. Designed for defensive security research and authorized penetration testing.
+
+## 📚 Resources
+
+- [OWASP — Subdomain Takeover](https://owasp.org/www-community/attacks/Subdomain_Takeover)
+- [Project Discovery — Subfinder](https://github.com/projectdiscovery/subfinder)
+- [Tomnomnom — Assetfinder](https://github.com/tomnomnom/assetfinder)
+
+---
+
+**Built with ❤️ for security researchers and bug bounty hunters**
