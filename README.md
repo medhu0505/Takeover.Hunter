@@ -23,13 +23,6 @@ bash run.sh
 
 Then open: http://127.0.0.1:5000
 
-## Deployment on Railway
-
-1. Push this project to GitHub.
-2. Connect your GitHub repo to Railway.
-3. Railway will automatically detect the Python app, install dependencies from `requirements.txt`, and start the server using `Procfile`.
-4. Your app will be live at the Railway-provided URL.
-
 ## Pipeline
 
 ### Stage 1 — Enumerate
