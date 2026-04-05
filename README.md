@@ -109,19 +109,6 @@ Custom DNS lookups (A, AAAA, CNAME, MX, TXT, NS, SOA, SRV, ANY)
 #### `/api/report` (POST)
 Generate HackerOne-formatted reports
 
-## 🚂 Deployment
-
-### Railway
-```bash
-git push heroku main
-```
-Dockerfile and Procfile enable automatic Go tools + dependencies.
-
-### Manual Docker
-```bash
-docker build -t takeover-hunter .
-docker run -p 5000:5000 -e PORT=5000 takeover-hunter
-```
 
 ## 🔍 How It Works
 
