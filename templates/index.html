@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TAKEOVER.SH — Subdomain Takeover Hunter</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #13161e;
+      --surface2:  #1a1e2a;
+      --border:    #252a38;
+      --accent:    #00e5ff;
+      --accent2:   #7c3aed;
+      --green:     #22c55e;
+      --yellow:    #eab308;
+      --red:       #ef4444;
+      --orange:    #f97316;
+      --muted:     #4b5563;
+      --text:      #e2e8f0;
+      --text-dim:  #94a3b8;
+      --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+      --font-sans: "Inter", system-ui, sans-serif;
+      --radius:    6px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────── */
+    .app-shell {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .logo span { color: var(--text-dim); }
+
+    .header-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: var(--accent2);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 99px;
+      letter-spacing: 0.08em;
+    }
+
+    .header-spacer { flex: 1; }
+
+    .header-status {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 0;
+      height: calc(100vh - 56px);
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 20px 16px;
+      gap: 20px;
+    }
+
+    /* ── Content Area ─────────────────────────────────────────────────── */
+    .content {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Tabs ─────────────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 0 20px;
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 14px 16px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-panel {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .tab-panel.active { display: block; }
+
+    /* ── Cards ────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .card + .card { margin-top: 12px; }
+
+    .card-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* ── Forms ────────────────────────────────────────────────────────── */
+    .form-group { margin-bottom: 12px; }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    input[type="text"], input[type="url"], select, textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus,
+    input[type="url"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
+
+    /* ── Buttons ──────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      white-space: nowrap;
+      letter-spacing: 0.03em;
+    }
+
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .btn-success {
+      background: var(--green);
+      color: #000;
+    }
+
+    .btn-purple {
+      background: var(--accent2);
+      color: #fff;
+    }
+
+    .btn-full { width: 100%; justify-content: center; }
+
+    /* ── Progress Bar ─────────────────────────────────────────────────── */
+    .progress-wrap {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      height: 6px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    /* ── Log Console ──────────────────────────────────────────────────── */
+    .log-console {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 10px;
+      height: 160px;
+      overflow-y: auto;
+      line-height: 1.7;
+    }
+
+    .log-line { display: flex; gap: 8px; }
+    .log-line .ts { color: var(--muted); flex-shrink: 0; }
+    .log-line.ok .msg { color: var(--green); }
+    .log-line.warn .msg { color: var(--yellow); }
+    .log-line.err .msg { color: var(--red); }
+    .log-line.info .msg { color: var(--accent); }
+
+    /* ── Stats Row ────────────────────────────────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .stat-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .stat-box .val {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-box .lbl {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Tables ───────────────────────────────────────────────────────── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 8px 10px;
+      color: var(--text-dim);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+    }
+
+    .data-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      word-break: break-all;
+    }
+
+    .data-table tr:hover td { background: var(--surface2); }
+
+    .data-table tr:last-child td { border-bottom: none; }
+
+    /* ── Badges ───────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 99px;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .badge-red    { background: rgba(239,68,68,0.15);  color: var(--red);    border: 1px solid rgba(239,68,68,0.3); }
+    .badge-orange { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+    .badge-yellow { background: rgba(234,179,8,0.15);  color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+    .badge-green  { background: rgba(34,197,94,0.15);  color: var(--green);  border: 1px solid rgba(34,197,94,0.3); }
+    .badge-blue   { background: rgba(0,229,255,0.1);   color: var(--accent); border: 1px solid rgba(0,229,255,0.2); }
+    .badge-muted  { background: rgba(75,85,99,0.2);    color: var(--muted);  border: 1px solid rgba(75,85,99,0.3); }
+
+    /* ── Finding Card ─────────────────────────────────────────────────── */
+    .finding-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      border-left: 3px solid var(--red);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .finding-card:hover { background: #1e2230; border-left-color: var(--accent); }
+
+    .finding-card.confirmed { border-left-color: var(--green); }
+    .finding-card.unconfirmed { border-left-color: var(--muted); }
+
+    .finding-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .finding-sub {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .finding-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .finding-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Report Modal ─────────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 720px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 4px;
+    }
+
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .report-output {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.8;
+      padding: 16px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* ── DNS Lookup ───────────────────────────────────────────────────── */
+    .dns-result {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 12px;
+      margin-top: 10px;
+      min-height: 60px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--green);
+    }
+
+    /* ── Quick Scan ───────────────────────────────────────────────────── */
+    .quickscan-result {
+      margin-top: 12px;
+    }
+
+    .quickscan-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .quickscan-row:last-child { border-bottom: none; }
+    .quickscan-key { color: var(--text-dim); }
+    .quickscan-val { color: var(--text); font-weight: 600; }
+
+    /* ── Empty State ──────────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-dim);
+    }
+
+    .empty-state .icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    .empty-state p {
+      font-size: 13px;
+      max-width: 300px;
+      margin: 0 auto;
+    }
+
+    /* ── Spinner ──────────────────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(0,229,255,0.3);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* ── Pulse dot ────────────────────────────────────────────────────── */
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+    /* ── Scrollbar ────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* ── Responsive ───────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      main {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        height: auto;
+        overflow: visible;
+      }
+
+      .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        max-height: 420px;
+      }
+
+      .content { height: calc(100vh - 56px - 420px); }
+    }
+
+    /* ── Section divider ──────────────────────────────────────────────── */
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      padding-left: 2px;
+    }
+
+    /* ── Inline row ───────────────────────────────────────────────────── */
+    .row { display: flex; gap: 8px; align-items: flex-end; }
+    .row .form-group { flex: 1; margin-bottom: 0; }
+
+    /* ── Highlight vulnerable ─────────────────────────────────────────── */
+    .vuln-glow { box-shadow: 0 0 0 1px rgba(239,68,68,0.4), 0 0 12px rgba(239,68,68,0.1); }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header>
+    <div class="logo">TAKEOVER<span>.</span>SH</div>
+    <div class="header-badge">DEADLY EDITION</div>
+    <div class="header-spacer"></div>
+    <div class="header-status" id="header-status">idle</div>
+  </header>
+
+  <main>
+
+    <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+    <aside class="sidebar">
+
+      <!-- Enumerate -->
+      <div>
+        <div class="section-label">① Enumerate</div>
+        <div class="card">
+          <div class="form-group">
+            <label>Target Domain</label>
+            <input type="text" id="target-input" placeholder="example.com" autocomplete="off" spellcheck="false" />
+          </div>
+          <button class="btn btn-primary btn-full" id="btn-enumerate">
+            <span>⚡</span> Enumerate Subdomains
+          </button>
+          <div class="progress-wrap" id="enum-progress-wrap" style="display:none">
+            <div class="progress-bar pulse" id="enum-progress-bar" style="width:100%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pipeline Actions -->
+      <div>
+        <div class="section-label">② Pipeline</div>
+        <div class="card" style="display:flex;flex-direction:column;gap:8px;">
+          <button class="btn btn-secondary btn-full" id="btn-triage" disabled>
+            <span>🔍</span> DNS Triage
+          </button>
+          <button class="btn btn-secondary btn-full" id="btn-scan" disabled>
+            <span>🎯</span> Scan CNAMEs for Vulns
+          </button>
+          <button class="btn btn-secondary btn-full" id="btn-verify" disabled>
+            <span>✓</span> Verify Findings
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Scan -->
+      <div>
+        <div class="section-label">Quick Scan</div>
+        <div class="card">
+          <div class="form-group">
+            <label>Subdomain</label>
+            <input type="text" id="qs-sub" placeholder="sub.example.com" spellcheck="false" />
+          </div>
+          <div class="form-group">
+            <label>CNAME Target</label>
+            <input type="text" id="qs-cname" placeholder="target.provider.com" spellcheck="false" />
+          </div>
+          <button class="btn btn-purple btn-full" id="btn-quickscan">
+            <span>⚡</span> Quick Check
+          </button>
+          <div class="quickscan-result" id="qs-result" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- DNS Lookup -->
+      <div>
+        <div class="section-label">DNS Lookup</div>
+        <div class="card">
+          <div class="form-group">
+            <label>Host</label>
+            <input type="text" id="dns-host" placeholder="example.com" spellcheck="false" />
+          </div>
+          <div class="row" style="margin-bottom:10px;">
+            <div class="form-group">
+              <label>Type</label>
+              <select id="dns-type">
+                <option>A</option>
+                <option>AAAA</option>
+                <option>CNAME</option>
+                <option>MX</option>
+                <option>TXT</option>
+                <option>NS</option>
+                <option>SOA</option>
+                <option>ANY</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary" id="btn-dns" style="margin-bottom:0">Lookup</button>
+          </div>
+          <div class="dns-result" id="dns-result" style="display:none"></div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ── Content ──────────────────────────────────────────────────────── -->
+    <div class="content">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-log">Console</button>
+        <button class="tab-btn" data-tab="tab-subdomains">Subdomains <span id="tab-count-subs" class="badge badge-muted" style="margin-left:4px">0</span></button>
+        <button class="tab-btn" data-tab="tab-cnames">CNAMEs <span id="tab-count-cnames" class="badge badge-muted" style="margin-left:4px">0</span></button>
+        <button class="tab-btn" data-tab="tab-vulns">Vulnerabilities <span id="tab-count-vulns" class="badge badge-red" style="margin-left:4px">0</span></button>
+        <button class="tab-btn" data-tab="tab-verified">Verified <span id="tab-count-verified" class="badge badge-green" style="margin-left:4px">0</span></button>
+      </div>
+
+      <!-- Console Tab -->
+      <div class="tab-panel active" id="tab-log">
+        <div class="stats-row" id="stats-row">
+          <div class="stat-box">
+            <div class="val" id="stat-subs">0</div>
+            <div class="lbl">Subdomains</div>
+          </div>
+          <div class="stat-box">
+            <div class="val" id="stat-cnames">0</div>
+            <div class="lbl">CNAMEs</div>
+          </div>
+          <div class="stat-box">
+            <div class="val" id="stat-dead">0</div>
+            <div class="lbl">Dead</div>
+          </div>
+          <div class="stat-box">
+            <div class="val" id="stat-vulns">0</div>
+            <div class="lbl">Vulns</div>
+          </div>
+          <div class="stat-box">
+            <div class="val" id="stat-confirmed">0</div>
+            <div class="lbl">Confirmed</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="dot"></span> Live Console</div>
+          <div class="log-console" id="log-console">
+            <div class="log-line info"><span class="ts">--:--:--</span><span class="msg">TAKEOVER.SH ready. Enter a target domain and click Enumerate.</span></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-title"><span class="dot" style="background:var(--yellow)"></span> Pipeline Progress</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:4px;">
+                <span>Enumeration</span><span id="prog-enum-label">—</span>
+              </div>
+              <div class="progress-wrap"><div class="progress-bar" id="prog-enum" style="width:0%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:4px;">
+                <span>DNS Triage</span><span id="prog-triage-label">—</span>
+              </div>
+              <div class="progress-wrap"><div class="progress-bar" id="prog-triage" style="width:0%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:4px;">
+                <span>Vuln Scan</span><span id="prog-scan-label">—</span>
+              </div>
+              <div class="progress-wrap"><div class="progress-bar" id="prog-scan" style="width:0%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:4px;">
+                <span>Verification</span><span id="prog-verify-label">—</span>
+              </div>
+              <div class="progress-wrap"><div class="progress-bar" id="prog-verify" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subdomains Tab -->
+      <div class="tab-panel" id="tab-subdomains">
+        <div id="subs-empty" class="empty-state">
+          <div class="icon">🌐</div>
+          <p>No subdomains yet. Run enumeration to discover subdomains.</p>
+        </div>
+        <div id="subs-table-wrap" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <input type="text" id="subs-filter" placeholder="Filter subdomains…" style="max-width:280px;" />
+            <button class="btn btn-secondary" id="btn-export-subs">⬇ Export</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Subdomain</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="subs-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CNAMEs Tab -->
+      <div class="tab-panel" id="tab-cnames">
+        <div id="cnames-empty" class="empty-state">
+          <div class="icon">🔗</div>
+          <p>No CNAME records yet. Run DNS Triage after enumeration.</p>
+        </div>
+        <div id="cnames-table-wrap" style="display:none">
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Subdomain</th>
+                  <th>CNAME Target</th>
+                  <th>Provider</th>
+                  <th>Takeover?</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="cnames-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vulnerabilities Tab -->
+      <div class="tab-panel" id="tab-vulns">
+        <div id="vulns-empty" class="empty-state">
+          <div class="icon">🎯</div>
+          <p>No vulnerabilities found yet. Run the CNAME scan after triage.</p>
+        </div>
+        <div id="vulns-list" style="display:none"></div>
+      </div>
+
+      <!-- Verified Tab -->
+      <div class="tab-panel" id="tab-verified">
+        <div id="verified-empty" class="empty-state">
+          <div class="icon">✅</div>
+          <p>No verified findings yet. Run verification after scanning.</p>
+        </div>
+        <div id="verified-list" style="display:none"></div>
+      </div>
+
+    </div><!-- /.content -->
+  </main>
+</div><!-- /.app-shell -->
+
+<!-- ── Report Modal ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="report-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📋 HackerOne Report</div>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+        <label style="margin:0;text-transform:none;font-size:12px;color:var(--text-dim);">H1 Username:</label>
+        <input type="text" id="h1-user" value="stickybugger" style="width:180px;" />
+        <button class="btn btn-secondary" id="btn-regen-report">↻ Regenerate</button>
+      </div>
+      <pre class="report-output" id="report-output">Generating report…</pre>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-copy-report">📋 Copy</button>
+      <button class="btn btn-primary" id="modal-close-btn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════════════════ */
+const state = {
+  subdomains:   [],
+  cnameRecords: [],
+  deadRecords:  [],
+  aRecords:     [],
+  vulnerable:   [],
+  verified:     [],
+  currentFinding: null,
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════════════════════════════════════ */
+function ts() {
+  return new Date().toTimeString().slice(0, 8);
+}
+
+function log(level, msg) {
+  const console_ = document.getElementById('log-console');
+  const line = document.createElement('div');
+  line.className = `log-line ${level}`;
+  line.innerHTML = `<span class="ts">${ts()}</span><span class="msg">${escHtml(msg)}</span>`;
+  console_.appendChild(line);
+  console_.scrollTop = console_.scrollHeight;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function setStatus(msg) {
+  document.getElementById('header-status').textContent = msg;
+}
+
+function updateStat(id, val) {
+  document.getElementById(id).textContent = val;
+}
+
+function updateTabCount(id, val) {
+  document.getElementById(id).textContent = val;
+}
+
+function setProgress(barId, labelId, done, total) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById(barId).style.width = pct + '%';
+  document.getElementById(labelId).textContent = total > 0 ? `${done}/${total}` : '—';
+}
+
+function showTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === tabId));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TAB SWITCHING
+═══════════════════════════════════════════════════════════════════════════ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => showTab(btn.dataset.tab));
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SSE CONSUMER
+═══════════════════════════════════════════════════════════════════════════ */
+function consumeSSE(url, method, body, handlers) {
+  // For POST endpoints we use fetch + ReadableStream (SSE over POST)
+  if (method === 'GET') {
+    const es = new EventSource(url);
+    for (const [evt, fn] of Object.entries(handlers)) {
+      es.addEventListener(evt, e => fn(JSON.parse(e.data)));
+    }
+    es.onerror = () => es.close();
+    return es;
+  }
+
+  // POST — fetch streaming
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(res => {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    function pump() {
+      reader.read().then(({ done, value }) => {
+        if (done) return;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split('\n\n');
+        buf = parts.pop();
+        for (const part of parts) {
+          const lines = part.split('\n');
+          let evt = 'message', data = '';
+          for (const l of lines) {
+            if (l.startsWith('event: ')) evt = l.slice(7).trim();
+            if (l.startsWith('data: '))  data = l.slice(6).trim();
+          }
+          if (data && handlers[evt]) {
+            try { handlers[evt](JSON.parse(data)); } catch {}
+          }
+        }
+        pump();
+      });
+    }
+    pump();
+  }).catch(err => log('err', 'Stream error: ' + err));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ① ENUMERATE
+═══════════════════════════════════════════════════════════════════════════ */
+document.getElementById('btn-enumerate').addEventListener('click', () => {
+  const target = document.getElementById('target-input').value.trim().toLowerCase();
+  if (!target) { log('warn', 'Enter a target domain first.'); return; }
+
+  // Reset state
+  state.subdomains = [];
+  state.cnameRecords = [];
+  state.deadRecords = [];
+  state.aRecords = [];
+  state.vulnerable = [];
+  state.verified = [];
+  renderSubdomains();
+  renderCnames();
+  renderVulns();
+  renderVerified();
+  updateStat('stat-subs', 0);
+  updateStat('stat-cnames', 0);
+  updateStat('stat-dead', 0);
+  updateStat('stat-vulns', 0);
+  updateStat('stat-confirmed', 0);
+  updateTabCount('tab-count-subs', 0);
+  updateTabCount('tab-count-cnames', 0);
+  updateTabCount('tab-count-vulns', 0);
+  updateTabCount('tab-count-verified', 0);
+  setProgress('prog-enum', 'prog-enum-label', 0, 0);
+  setProgress('prog-triage', 'prog-triage-label', 0, 0);
+  setProgress('prog-scan', 'prog-scan-label', 0, 0);
+  setProgress('prog-verify', 'prog-verify-label', 0, 0);
+
+  ['btn-triage','btn-scan','btn-verify'].forEach(id => {
+    document.getElementById(id).disabled = true;
+  });
+
+  const btn = document.getElementById('btn-enumerate');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enumerating…';
+  document.getElementById('enum-progress-wrap').style.display = 'block';
+  setStatus(`enumerating ${target}…`);
+  log('info', `Starting enumeration for ${target}`);
+  showTab('tab-log');
+
+  document.getElementById('prog-enum-label').textContent = 'running…';
+  document.getElementById('prog-enum').style.width = '100%';
+  document.getElementById('prog-enum').classList.add('pulse');
+
+  consumeSSE(`/api/enumerate?target=${encodeURIComponent(target)}`, 'GET', null, {
+    log: d => log(d.level, d.msg),
+    done: d => {
+      state.subdomains = d.subdomains || [];
+      updateStat('stat-subs', state.subdomains.length);
+      updateTabCount('tab-count-subs', state.subdomains.length);
+      renderSubdomains();
+
+      document.getElementById('prog-enum').classList.remove('pulse');
+      document.getElementById('prog-enum').style.width = '100%';
+      document.getElementById('prog-enum-label').textContent = `${state.subdomains.length} found`;
+      document.getElementById('enum-progress-wrap').style.display = 'none';
+
+      btn.disabled = false;
+      btn.innerHTML = '<span>⚡</span> Enumerate Subdomains';
+      setStatus(`enumeration done — ${state.subdomains.length} subdomains`);
+      log('ok', `Enumeration complete: ${state.subdomains.length} subdomains found`);
+
+      if (state.subdomains.length > 0) {
+        document.getElementById('btn-triage').disabled = false;
+      }
+    },
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ② TRIAGE
+═══════════════════════════════════════════════════════════════════════════ */
+document.getElementById('btn-triage').addEventListener('click', () => {
+  if (!state.subdomains.length) { log('warn', 'No subdomains to triage.'); return; }
+
+  const btn = document.getElementById('btn-triage');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Triaging…';
+  setStatus('running DNS triage…');
+  log('info', `Triaging ${state.subdomains.length} subdomains…`);
+
+  let done = 0;
+  const total = state.subdomains.length;
+
+  consumeSSE('/api/triage', 'POST', { subdomains: state.subdomains }, {
+    progress: d => {
+      done = d.done;
+      setProgress('prog-triage', 'prog-triage-label', d.done, d.total);
+    },
+    done: d => {
+      state.cnameRecords = d.cname || [];
+      state.deadRecords  = d.dead  || [];
+      state.aRecords     = d.a     || [];
+
+      updateStat('stat-cnames', state.cnameRecords.length);
+      updateStat('stat-dead',   state.deadRecords.length);
+      updateTabCount('tab-count-cnames', state.cnameRecords.length);
+      renderCnames();
+
+      setProgress('prog-triage', 'prog-triage-label', total, total);
+      btn.disabled = false;
+      btn.innerHTML = '<span>🔍</span> DNS Triage';
+      setStatus(`triage done — ${state.cnameRecords.length} CNAMEs`);
+      log('ok', `Triage complete: ${state.cnameRecords.length} CNAMEs, ${state.deadRecords.length} dead, ${state.aRecords.length} A-records`);
+
+      if (state.cnameRecords.length > 0) {
+        document.getElementById('btn-scan').disabled = false;
+      }
+      showTab('tab-cnames');
+    },
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ③ SCAN
+═══════════════════════════════════════════════════════════════════════════ */
+document.getElementById('btn-scan').addEventListener('click', () => {
+  if (!state.cnameRecords.length) { log('warn', 'No CNAME records to scan.'); return; }
+
+  const btn = document.getElementById('btn-scan');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Scanning…';
+  setStatus('scanning for vulnerabilities…');
+  log('info', `Scanning ${state.cnameRecords.length} CNAME records…`);
+  state.vulnerable = [];
+  renderVulns();
+
+  const total = state.cnameRecords.length;
+
+  consumeSSE('/api/scan', 'POST', { cname_records: state.cnameRecords }, {
+    progress: d => setProgress('prog-scan', 'prog-scan-label', d.done, d.total),
+    log: d => log(d.level, d.msg),
+    vuln: d => {
+      state.vulnerable.push(d);
+      updateStat('stat-vulns', state.vulnerable.length);
+      updateTabCount('tab-count-vulns', state.vulnerable.length);
+      renderVulns();
+      log('warn', `VULNERABLE: ${d.sub} → ${d.cname} [${d.provider}] (${d.confidence})`);
+    },
+    done: d => {
+      setProgress('prog-scan', 'prog-scan-label', total, total);
+      btn.disabled = false;
+      btn.innerHTML = '<span>🎯</span> Scan CNAMEs for Vulns';
+      setStatus(`scan done — ${state.vulnerable.length} vulnerabilities`);
+      log('ok', `Scan complete: ${state.vulnerable.length} potential vulnerabilities`);
+
+      if (state.vulnerable.length > 0) {
+        document.getElementById('btn-verify').disabled = false;
+        showTab('tab-vulns');
+      }
+    },
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ④ VERIFY
+═══════════════════════════════════════════════════════════════════════════ */
+document.getElementById('btn-verify').addEventListener('click', () => {
+  if (!state.vulnerable.length) { log('warn', 'No vulnerabilities to verify.'); return; }
+
+  const btn = document.getElementById('btn-verify');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Verifying…';
+  setStatus('verifying findings…');
+  log('info', `Verifying ${state.vulnerable.length} findings…`);
+  state.verified = [];
+  renderVerified();
+
+  let done = 0;
+
+  consumeSSE('/api/verify', 'POST', { vulnerable: state.vulnerable }, {
+    log: d => log(d.level, d.msg),
+    verified: d => {
+      state.verified.push(d);
+      done++;
+      setProgress('prog-verify', 'prog-verify-label', done, state.vulnerable.length);
+      updateTabCount('tab-count-verified', state.verified.length);
+      if (d.verified) {
+        updateStat('stat-confirmed', state.verified.filter(v => v.verified).length);
+      }
+      renderVerified();
+    },
+    done: d => {
+      const confirmed = state.verified.filter(v => v.verified).length;
+      btn.disabled = false;
+      btn.innerHTML = '<span>✓</span> Verify Findings';
+      setStatus(`verification done — ${confirmed} confirmed`);
+      log('ok', `Verification complete: ${confirmed}/${state.verified.length} confirmed`);
+      showTab('tab-verified');
+    },
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER — SUBDOMAINS
+═══════════════════════════════════════════════════════════════════════════ */
+function renderSubdomains(filter) {
+  const tbody = document.getElementById('subs-tbody');
+  const empty = document.getElementById('subs-empty');
+  const wrap  = document.getElementById('subs-table-wrap');
+
+  if (!state.subdomains.length) {
+    empty.style.display = '';
+    wrap.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  wrap.style.display = '';
+
+  const q = (filter || '').toLowerCase();
+  const rows = state.subdomains
+    .filter(s => !q || s.includes(q))
+    .map((s, i) => `
+      <tr>
+        <td style="color:var(--muted)">${i + 1}</td>
+        <td>${escHtml(s)}</td>
+        <td>
+          <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;"
+            onclick="quickScanFromTable('${escHtml(s)}')">Quick Scan</button>
+        </td>
+      </tr>
+    `).join('');
+
+  tbody.innerHTML = rows || '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:20px;">No matches</td></tr>';
+}
+
+document.getElementById('subs-filter').addEventListener('input', e => {
+  renderSubdomains(e.target.value);
+});
+
+document.getElementById('btn-export-subs').addEventListener('click', () => {
+  const blob = new Blob([state.subdomains.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'subdomains.txt';
+  a.click();
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER — CNAMES
+═══════════════════════════════════════════════════════════════════════════ */
+function renderCnames() {
+  const tbody = document.getElementById('cnames-tbody');
+  const empty = document.getElementById('cnames-empty');
+  const wrap  = document.getElementById('cnames-table-wrap');
+
+  if (!state.cnameRecords.length) {
+    empty.style.display = '';
+    wrap.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  wrap.style.display = '';
+
+  tbody.innerHTML = state.cnameRecords.map(r => `
+    <tr>
+      <td>${escHtml(r.sub)}</td>
+      <td style="color:var(--text-dim)">${escHtml(r.cname)}</td>
+      <td>${escHtml(r.provider || '—')}</td>
+      <td>${r.takeover_possible
+        ? '<span class="badge badge-red">YES</span>'
+        : '<span class="badge badge-muted">NO</span>'}</td>
+      <td>
+        <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;"
+          onclick="quickScanFromTable('${escHtml(r.sub)}', '${escHtml(r.cname)}')">Scan</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER — VULNERABILITIES
+═══════════════════════════════════════════════════════════════════════════ */
+function renderVulns() {
+  const list  = document.getElementById('vulns-list');
+  const empty = document.getElementById('vulns-empty');
+
+  if (!state.vulnerable.length) {
+    empty.style.display = '';
+    list.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.style.display = '';
+
+  list.innerHTML = state.vulnerable.map((v, i) => `
+    <div class="finding-card vuln-glow">
+      <div class="finding-header">
+        <div class="finding-sub">${escHtml(v.sub)}</div>
+        ${severityBadge(v.severity)}
+        ${confidenceBadge(v.confidence)}
+        ${v.nxdomain ? '<span class="badge badge-red">NXDOMAIN</span>' : ''}
+        ${v.body_match ? '<span class="badge badge-orange">BODY MATCH</span>' : ''}
+      </div>
+      <div class="finding-meta">
+        CNAME → ${escHtml(v.cname)} &nbsp;|&nbsp; Provider: ${escHtml(v.provider)} &nbsp;|&nbsp; HTTP ${v.http_code}
+        ${v.match_string ? `&nbsp;|&nbsp; Match: <em>${escHtml(v.match_string)}</em>` : ''}
+      </div>
+      <div class="finding-actions">
+        <button class="btn btn-danger" onclick="openReport(${i}, 'vuln')">📋 Generate Report</button>
+        <button class="btn btn-secondary" onclick="dnsLookupFor('${escHtml(v.sub)}')">🔍 DNS Lookup</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER — VERIFIED
+═══════════════════════════════════════════════════════════════════════════ */
+function renderVerified() {
+  const list  = document.getElementById('verified-list');
+  const empty = document.getElementById('verified-empty');
+
+  if (!state.verified.length) {
+    empty.style.display = '';
+    list.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.style.display = '';
+
+  list.innerHTML = state.verified.map((v, i) => `
+    <div class="finding-card ${v.verified ? 'confirmed' : 'unconfirmed'}">
+      <div class="finding-header">
+        <div class="finding-sub">${escHtml(v.sub)}</div>
+        ${v.verified
+          ? '<span class="badge badge-green">✓ CONFIRMED</span>'
+          : '<span class="badge badge-muted">✗ NOT CONFIRMED</span>'}
+        ${severityBadge(v.severity)}
+        ${confidenceBadge(v.confidence)}
+      </div>
+      <div class="finding-meta">
+        CNAME → ${escHtml(v.cname)} &nbsp;|&nbsp; Provider: ${escHtml(v.provider)}
+        &nbsp;|&nbsp; NX×2: ${v.verify_nxdomain_1 && v.verify_nxdomain_2 ? '✓' : '✗'}
+        &nbsp;|&nbsp; CNAME present: ${v.cname_still_present ? '✓' : '✗'}
+        &nbsp;|&nbsp; HTTP ${v.verify_http}
+      </div>
+      ${v.verified ? `
+      <div class="finding-actions">
+        <button class="btn btn-success" onclick="openReport(${i}, 'verified')">📋 Generate H1 Report</button>
+        <button class="btn btn-secondary" onclick="dnsLookupFor('${escHtml(v.sub)}')">🔍 DNS Lookup</button>
+      </div>` : ''}
+    </div>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BADGE HELPERS
+═══════════════════════════════════════════════════════════════════════════ */
+function severityBadge(sev) {
+  const cls = sev === 'Critical' ? 'badge-red' : 'badge-orange';
+  return `<span class="badge ${cls}">${escHtml(sev || 'High')}</span>`;
+}
+
+function confidenceBadge(conf) {
+  const map = { high: 'badge-red', medium: 'badge-yellow', low: 'badge-muted' };
+  return `<span class="badge ${map[conf] || 'badge-muted'}">${escHtml(conf || 'low').toUpperCase()}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REPORT MODAL
+═══════════════════════════════════════════════════════════════════════════ */
+function openReport(idx, source) {
+  const finding = source === 'verified' ? state.verified[idx] : state.vulnerable[idx];
+  state.currentFinding = finding;
+  document.getElementById('report-modal').classList.add('open');
+  generateReport(finding);
+}
+
+function generateReport(finding) {
+  const user = document.getElementById('h1-user').value.trim() || 'stickybugger';
+  document.getElementById('report-output').textContent = 'Generating…';
+
+  fetch('/api/report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ finding, h1_user: user }),
+  })
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('report-output').textContent = d.report || d.error || 'Error';
+    })
+    .catch(e => {
+      document.getElementById('report-output').textContent = 'Error: ' + e;
+    });
+}
+
+document.getElementById('btn-regen-report').addEventListener('click', () => {
+  if (state.currentFinding) generateReport(state.currentFinding);
+});
+
+document.getElementById('btn-copy-report').addEventListener('click', () => {
+  const text = document.getElementById('report-output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btn-copy-report');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+  });
+});
+
+function closeModal() {
+  document.getElementById('report-modal').classList.remove('open');
+}
+
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+document.getElementById('report-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('report-modal')) closeModal();
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   QUICK SCAN
+═══════════════════════════════════════════════════════════════════════════ */
+function quickScanFromTable(sub, cname) {
+  document.getElementById('qs-sub').value = sub || '';
+  document.getElementById('qs-cname').value = cname || '';
+  document.getElementById('qs-result').style.display = 'none';
+  document.getElementById('btn-quickscan').click();
+}
+
+document.getElementById('btn-quickscan').addEventListener('click', () => {
+  const sub   = document.getElementById('qs-sub').value.trim();
+  const cname = document.getElementById('qs-cname').value.trim();
+
+  if (!cname) { log('warn', 'Quick Scan: CNAME target is required.'); return; }
+
+  const btn = document.getElementById('btn-quickscan');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Checking…';
+
+  fetch('/api/quickscan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sub, cname }),
+  })
+    .then(r => r.json())
+    .then(d => {
+      btn.disabled = false;
+      btn.innerHTML = '<span>⚡</span> Quick Check';
+
+      const result = document.getElementById('qs-result');
+      result.style.display = '';
+
+      const rows = [
+        ['Subdomain',   d.sub],
+        ['CNAME',       d.cname],
+        ['Provider',    d.provider],
+        ['NXDOMAIN',    d.nxdomain ? '✓ YES' : '✗ NO'],
+        ['HTTP Code',   d.http_code],
+        ['Confidence',  d.confidence],
+        ['Severity',    d.severity],
+        ['Vulnerable',  d.vulnerable ? '🔴 YES' : '🟢 NO'],
+      ];
+
+      result.innerHTML = rows.map(([k, v]) => `
+        <div class="quickscan-row">
+          <span class="quickscan-key">${escHtml(k)}</span>
+          <span class="quickscan-val">${escHtml(String(v))}</span>
+        </div>
+      `).join('');
+
+      if (d.vulnerable) {
+        log('warn', `Quick Scan: ${d.sub} appears VULNERABLE (${d.provider}, ${d.confidence} confidence)`);
+      } else {
+        log('info', `Quick Scan: ${d.sub} — not vulnerable`);
+      }
+    })
+    .catch(e => {
+      btn.disabled = false;
+      btn.innerHTML = '<span>⚡</span> Quick Check';
+      log('err', 'Quick Scan error: ' + e);
+    });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DNS LOOKUP
+═══════════════════════════════════════════════════════════════════════════ */
+function dnsLookupFor(host) {
+  document.getElementById('dns-host').value = host;
+  document.getElementById('dns-type').value = 'CNAME';
+  document.getElementById('btn-dns').click();
+}
+
+document.getElementById('btn-dns').addEventListener('click', () => {
+  const host  = document.getElementById('dns-host').value.trim();
+  const type  = document.getElementById('dns-type').value;
+
+  if (!host) { log('warn', 'DNS Lookup: enter a host.'); return; }
+
+  const btn = document.getElementById('btn-dns');
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  fetch('/api/dns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ host, type }),
+  })
+    .then(r => r.json())
+    .then(d => {
+      btn.disabled = false;
+      btn.textContent = 'Lookup';
+
+      const el = document.getElementById('dns-result');
+      el.style.display = '';
+
+      if (d.error) {
+        el.style.color = 'var(--red)';
+        el.textContent = `Error: ${d.error}`;
+      } else {
+        el.style.color = 'var(--green)';
+        el.textContent = d.records.length
+          ? d.records.join('\n')
+          : 'No records found';
+      }
+    })
+    .catch(e => {
+      btn.disabled = false;
+      btn.textContent = 'Lookup';
+      log('err', 'DNS Lookup error: ' + e);
+    });
+});
+
+// Allow Enter key in DNS host field
+document.getElementById('dns-host').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-dns').click();
+});
+
+// Allow Enter key in target field
+document.getElementById('target-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-enumerate').click();
+});
+</script>
+</body>
+</html>
