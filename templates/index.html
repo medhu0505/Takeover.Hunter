@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAKEOVER.HUNTER</title>
+<title>TAKEOVER.HUNTER V2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@700;800;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -96,6 +96,63 @@ header::after {
 .status-chip.scanning{ color:var(--blue);   border-color:rgba(77,184,255,0.3); background:var(--blue-bg);  }
 .status-led { width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor; }
 .status-chip.running .status-led,.status-chip.scanning .status-led { animation:blink 0.8s ease infinite; }
+
+/* ── PROVIDER FILTER ── */
+.filter-wrap { position:relative; }
+
+.filter-btn {
+  display:flex; align-items:center; gap:5px;
+  font-family:var(--mono); font-size:9px; letter-spacing:0.12em;
+  color:var(--muted); background:var(--surface2);
+  border:1px solid var(--border2); border-radius:4px;
+  padding:4px 9px; cursor:pointer; transition:all 0.15s var(--ease);
+}
+.filter-btn:hover { color:var(--green); border-color:var(--border3); background:var(--green-bg); }
+.filter-btn.active { color:var(--green); border-color:var(--border3); background:var(--green-bg); }
+
+.filter-count {
+  background:var(--green); color:#000; font-size:8px; font-weight:700;
+  border-radius:10px; padding:0 5px; min-width:14px; text-align:center;
+}
+
+.filter-dropdown {
+  display:none; position:absolute; top:calc(100% + 6px); right:0;
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:6px; width:220px; z-index:999;
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  overflow:hidden;
+}
+.filter-dropdown.open { display:block; animation:fadeDown 0.15s var(--ease); }
+@keyframes fadeDown { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+
+.filter-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 12px; border-bottom:1px solid var(--border);
+  font-size:9px; letter-spacing:0.1em; color:var(--muted);
+}
+.filter-clear {
+  font-family:var(--mono); font-size:8px; letter-spacing:0.1em;
+  color:var(--muted); background:none; border:none; cursor:pointer;
+  padding:2px 6px; border-radius:3px;
+}
+.filter-clear:hover { color:var(--red); }
+
+.filter-list {
+  padding:6px; display:flex; flex-direction:column; gap:2px;
+  max-height:220px; overflow-y:auto;
+}
+
+.filter-item {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:5px 8px; border-radius:4px; cursor:pointer;
+  font-size:10px; color:var(--muted); letter-spacing:0.04em;
+  transition:all 0.12s; border:1px solid transparent;
+  user-select:none;
+}
+.filter-item:hover { background:var(--surface2); color:var(--text); }
+.filter-item.selected { background:var(--green-bg); color:var(--green); border-color:var(--border2); }
+.filter-item .fi-check { font-size:9px; opacity:0; }
+.filter-item.selected .fi-check { opacity:1; }
 
 /* ── STAGE BAR ── */
 .stage-bar {
@@ -493,12 +550,31 @@ textarea { resize:none; line-height:1.5; }
 <header>
   <div class="logo">
     <div class="logo-dot"></div>
-    TAKEOVER<em>.HUNTER</em>
+    TAKEOVER<em>.HUNTER</em><span style="font-size:10px;color:var(--blue);margin-left:4px;font-family:var(--mono);letter-spacing:0.05em;">V2</span>
   </div>
   <div class="hdr-right">
     <div class="hdr-stat">SUBS <span id="hsSubs">0</span></div>
     <div class="hdr-stat">CNAMES <span id="hsCname">0</span></div>
     <div class="hdr-stat">VULNS <span id="hsVuln" style="color:var(--red)">0</span></div>
+
+    <!-- FILTER BUTTON -->
+    <div class="filter-wrap" id="filterWrap">
+      <button class="filter-btn" id="filterBtn" onclick="toggleFilter()" aria-label="Provider filter">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 2h10M3 6h6M5 10h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        FILTER
+        <span id="filterCount" class="filter-count" style="display:none">0</span>
+      </button>
+      <div class="filter-dropdown" id="filterDropdown">
+        <div class="filter-header">
+          <span>PROVIDER FILTER</span>
+          <button onclick="clearFilter()" class="filter-clear">CLEAR</button>
+        </div>
+        <div class="filter-list" id="filterList"></div>
+      </div>
+    </div>
+
     <div class="status-chip" id="statusChip">
       <div class="status-led"></div>
       <span id="statusText">IDLE</span>
@@ -515,6 +591,10 @@ textarea { resize:none; line-height:1.5; }
   <div class="stage" id="stage3"><div class="stage-n">3</div>Vuln Scan</div>
   <div class="sep">›</div>
   <div class="stage" id="stage4"><div class="stage-n">4</div>Verify</div>
+  <div class="sep">›</div>
+  <div class="stage" id="stage6"><div class="stage-n">🕵</div>JS Recon</div>
+  <div class="sep">›</div>
+  <div class="stage" id="stage7"><div class="stage-n">📦</div>Archive</div>
   <div class="sep">›</div>
   <div class="stage" id="stage5"><div class="stage-n">⚡</div>Quick Scan</div>
 </div>
@@ -544,6 +624,22 @@ textarea { resize:none; line-height:1.5; }
       <button class="btn btn-green" id="btnEnum" onclick="startEnum()"><span>▶</span> Start Enumeration</button>
       <button class="btn btn-blue"  id="btnScan" onclick="startScan()" disabled><span>⚡</span> Scan CNAMEs</button>
       <button class="btn btn-orange" id="btnVerify" onclick="startVerify()" disabled><span>✓</span> Verify Findings</button>
+      <button class="btn" id="btnJSRecon" onclick="startJSRecon()" disabled style="background:var(--surface2);border:1px solid var(--border2);color:var(--purple);"><span>🕵</span> JS Recon</button>
+      <button class="btn" id="btnArchive" onclick="startArchive()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--blue);"><span>📦</span> Archive Mine</button>
+
+      <!-- CLAIMABLE ONLY TOGGLE -->
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+        <label style="font-size:9px;color:var(--muted);letter-spacing:0.08em;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="claimableOnly" style="accent-color:var(--green);width:12px;height:12px;">
+          CLAIMABLE ONLY
+        </label>
+      </div>
+
+      <!-- TOOL STATUS -->
+      <div style="margin-top:10px;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:0.1em;margin-bottom:6px;">TOOLS</div>
+        <div id="toolStatus" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      </div>
     </div>
 
     <!-- STATS — fixed height, 2x2 grid -->
@@ -805,6 +901,70 @@ async function startEnum() {
   setStatus('TRIAGED','ok'); setStage(3);
 }
 
+// ─── PROVIDER FILTER ─────────────────────────────────────────────────────────
+const PROVIDERS = [
+  "Heroku","GitHub Pages","AWS S3","AWS CloudFront","AWS ELB",
+  "Azure","Fastly","Netlify","Vercel","Webflow","Pantheon",
+  "Ghost","Shopify","Tumblr","WordPress","Zendesk","Bitbucket","Seismic"
+];
+const selectedProviders = new Set();
+
+function initProviderFilter() {
+  const list = document.getElementById('filterList');
+  PROVIDERS.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'filter-item';
+    item.dataset.provider = p;
+    item.innerHTML = `<span>${p}</span><span class="fi-check">✓</span>`;
+    item.onclick = () => toggleProvider(p, item);
+    list.appendChild(item);
+  });
+
+  // Close on outside click
+  document.addEventListener('click', e => {
+    if (!document.getElementById('filterWrap').contains(e.target)) {
+      document.getElementById('filterDropdown').classList.remove('open');
+    }
+  });
+}
+
+function toggleFilter() {
+  document.getElementById('filterDropdown').classList.toggle('open');
+}
+
+function toggleProvider(p, el) {
+  if (selectedProviders.has(p)) {
+    selectedProviders.delete(p);
+    el.classList.remove('selected');
+  } else {
+    selectedProviders.add(p);
+    el.classList.add('selected');
+  }
+  updateFilterBtn();
+}
+
+function clearFilter() {
+  selectedProviders.clear();
+  document.querySelectorAll('.filter-item').forEach(el => el.classList.remove('selected'));
+  updateFilterBtn();
+}
+
+function updateFilterBtn() {
+  const btn = document.getElementById('filterBtn');
+  const count = document.getElementById('filterCount');
+  const n = selectedProviders.size;
+  if (n > 0) {
+    btn.classList.add('active');
+    count.style.display = 'inline';
+    count.textContent = n;
+  } else {
+    btn.classList.remove('active');
+    count.style.display = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initProviderFilter);
+
 // ─── SCAN ────────────────────────────────────────────────────────────────────
 async function startScan() {
   if (!S.cnames.length) return;
@@ -812,11 +972,14 @@ async function startScan() {
   document.getElementById('btnVerify').disabled = true;
   S.vulnerable = []; setStat('sVuln', 0);
   setStatus('SCANNING','scanning');
-  log(`Scanning ${S.cnames.length} CNAMEs for takeover vulns...`, 'l-info');
+
+  const filter = [...selectedProviders];
+  const filterMsg = filter.length ? `Filtering: ${filter.join(', ')}` : 'All providers';
+  log(`Scanning ${S.cnames.length} CNAMEs for takeover vulns... [${filterMsg}]`, 'l-info');
 
   await listenSSE('/api/scan', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ cname_records: S.cnames }),
+    body: JSON.stringify({ cname_records: S.cnames, provider_filter: filter }),
   }, {
     progress: d => setProgress(d.done, d.total),
     vuln: d => {
@@ -1196,6 +1359,120 @@ document.getElementById('targetInput').addEventListener('keydown', e => { if(e.k
 document.getElementById('qsSub').addEventListener('keydown',   e => { if(e.key==='Enter') runQuickScan(); });
 document.getElementById('qsCname').addEventListener('keydown', e => { if(e.key==='Enter') runQuickScan(); });
 document.getElementById('dnsHost').addEventListener('keydown', e => { if(e.key==='Enter') runDnsLookup(); });
+
+// ─── TOOL STATUS CHECK ───────────────────────────────────────────────────────
+async function checkTools() {
+  try {
+    const res = await fetch('/api/tools');
+    const tools = await res.json();
+    const container = document.getElementById('toolStatus');
+    container.innerHTML = '';
+    Object.entries(tools).forEach(([name, available]) => {
+      const chip = document.createElement('div');
+      chip.style.cssText = `font-size:8px;padding:2px 6px;border-radius:3px;letter-spacing:0.06em;
+        background:${available ? 'var(--green-bg)' : 'var(--surface3)'};
+        color:${available ? 'var(--green)' : 'var(--dimmed)'};
+        border:1px solid ${available ? 'var(--border2)' : 'transparent'};`;
+      chip.textContent = (available ? '● ' : '○ ') + name;
+      chip.title = available ? `${name} installed` : `${name} not found — install for full power`;
+      container.appendChild(chip);
+    });
+  } catch(e) {}
+}
+document.addEventListener('DOMContentLoaded', checkTools);
+
+// ─── JS RECON ────────────────────────────────────────────────────────────────
+async function startJSRecon() {
+  const target = document.getElementById('targetInput').value.trim();
+  if (!target) return;
+  document.getElementById('btnJSRecon').disabled = true;
+  setStage(6); setStatus('JS RECON','scanning');
+  log('Starting JS recon — crawling with katana + archive mining...', 'l-info');
+
+  await listenSSE('/api/jsrecon', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ target, subdomains: S.subdomains || [] }),
+  }, {
+    log: d => log(d.msg, d.level === 'ok' ? 'l-ok' : d.level === 'err' ? 'l-err' : 'l-info'),
+    secret: d => log(`🔑 SECRET [${d.type}] in ${d.url}: ${d.value}`, 'l-warn'),
+    done: d => {
+      log(`JS Recon complete — ${d.js_count} JS files found, ${d.secrets?.length || 0} secrets extracted`, 'l-ok');
+      if (d.secrets?.length) {
+        log(`⚠ ${d.secrets.length} potential secrets found — review manually`, 'l-warn');
+      }
+      setStatus('IDLE','');
+      document.getElementById('btnJSRecon').disabled = false;
+    },
+    error: d => log('JS recon error: '+d.msg, 'l-err'),
+  });
+}
+
+// ─── ARCHIVE RECON ───────────────────────────────────────────────────────────
+async function startArchive() {
+  const target = document.getElementById('targetInput').value.trim();
+  if (!target) return;
+  document.getElementById('btnArchive').disabled = true;
+  setStage(7); setStatus('ARCHIVE MINE','scanning');
+  log('Mining gau + waybackurls for archived endpoints...', 'l-info');
+
+  await listenSSE('/api/archive', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ target }),
+  }, {
+    log: d => log(d.msg, d.level === 'ok' ? 'l-ok' : 'l-info'),
+    done: d => {
+      log(`Archive mine complete — ${d.total} total URLs`, 'l-ok');
+      log(`  → ${d.params?.length} URLs with params`, 'l-info');
+      log(`  → ${d.admin?.length} admin/auth endpoints`, d.admin?.length ? 'l-warn' : 'l-info');
+      log(`  → ${d.js?.length} JS files`, 'l-info');
+      log(`  → ${d.interesting?.length} interesting paths (config/backup/env)`, d.interesting?.length ? 'l-warn' : 'l-info');
+      if (d.interesting?.length) {
+        d.interesting.slice(0,5).forEach(u => log(`  ⚠ ${u}`, 'l-warn'));
+      }
+      setStatus('IDLE','');
+      document.getElementById('btnArchive').disabled = false;
+    },
+    error: d => log('Archive error: '+d.msg, 'l-err'),
+  });
+}
+
+// ─── PATCH SCAN TO USE CLAIMABLE FILTER ──────────────────────────────────────
+const _origStartScan = startScan;
+// startScan already reads selectedProviders — patch body to include claimable_only
+const __patchedScan = async function() {
+  if (!S.cnames.length) return;
+  document.getElementById('btnScan').disabled = true;
+  document.getElementById('btnVerify').disabled = true;
+  S.vulnerable = []; setStat('sVuln', 0);
+  setStatus('SCANNING','scanning');
+
+  const filter = [...selectedProviders];
+  const claimableOnly = document.getElementById('claimableOnly').checked;
+  const filterMsg = filter.length ? `Filtering: ${filter.join(', ')}` : claimableOnly ? 'Claimable only' : 'All providers';
+  log(`Scanning ${S.cnames.length} CNAMEs for takeover vulns... [${filterMsg}]`, 'l-info');
+
+  await listenSSE('/api/scan', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ cname_records: S.cnames, provider_filter: filter, claimable_only: claimableOnly }),
+  }, {
+    progress: d => setProgress(d.done, d.total),
+    vuln: d => {
+      S.vulnerable.push(d); setStat('sVuln', S.vulnerable.length);
+      const claimTag = d.claimable ? (d.free_account ? ' [FREE POC✓]' : ' [POC$]') : ' [NO POC]';
+      log(`⚠ VULN: ${d.sub} [${d.severity}][${d.confidence}]${claimTag}`, 'l-warn');
+    },
+    done: d => log(`Scan complete — ${d.count} vulnerable`, d.count > 0 ? 'l-warn' : 'l-ok'),
+    error: d => log('Scan error: '+d.msg, 'l-err'),
+  });
+
+  renderResults();
+  document.getElementById('btnVerify').disabled = S.vulnerable.length === 0;
+  document.getElementById('btnScan').disabled = false;
+  setStage(3); setStatus(S.vulnerable.length ? 'VULNS' : 'OK', S.vulnerable.length ? 'vulns' : 'ok');
+};
+// Override startScan with patched version
+window.startScan = __patchedScan;
+
 </script>
 </body>
 </html>
