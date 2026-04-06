@@ -38,7 +38,6 @@ FINGERPRINTS = [
     {"provider": "Marketo",        "patterns": ["mktoweb.com", "marketo.com"],         "takeover": True, "claimable": True,  "free_account": False, "status_match": ""},
 ]
 
-# JS secret patterns for extraction
 JS_SECRET_PATTERNS = [
     (r'(?i)(api[_-]?key|apikey)\s*[=:]\s*["\']([A-Za-z0-9\-_]{16,})["\']', "API Key"),
     (r'(?i)(secret|token|auth)\s*[=:]\s*["\']([A-Za-z0-9\-_]{16,})["\']', "Secret/Token"),
@@ -102,7 +101,6 @@ def http_probe(subdomain):
     return {"code": 0, "body": "", "headers": {}}
 
 def httpx_probe_bulk(subdomains):
-    """Use httpx for fast bulk probing if available"""
     if not cmd_exists("httpx"): return {}
     try:
         inp = "\n".join(subdomains)
@@ -194,7 +192,6 @@ def api_enumerate():
 
 # ─── DNS TRIAGE ──────────────────────────────────────────────────────────────
 def dnsx_resolve_bulk(subdomains):
-    """Use dnsx for fast bulk CNAME resolution if available"""
     if not cmd_exists("dnsx"): return {}
     try:
         inp = "\n".join(subdomains)
@@ -343,7 +340,6 @@ def api_scan():
 
 # ─── JS RECON (WITH ENTERTAINING LOGS) ──────────────────────────────────────
 def js_recon_worker(target, subdomains, q):
-    """Crawl live subdomains with katana, extract JS files, scan for secrets"""
     live = [s for s in subdomains if http_probe(s)["code"] not in [0]][:20]
     
     q.put(("log", "info", f"🕵️ JS Recon: probing {len(live)} live subdomains for JavaScript..."))
@@ -363,6 +359,10 @@ def js_recon_worker(target, subdomains, q):
         "🌐 Analyzing network requests...",
         "🎭 Deobfuscating code sections...",
         "🚀 Executing dynamic analysis...",
+        "💻 Evaluating code quality...",
+        "🔗 Tracking URL patterns...",
+        "📝 Analyzing function calls...",
+        "🎯 Refining results...",
     ]
     msg_idx = 0
 
@@ -414,7 +414,6 @@ def js_recon_worker(target, subdomains, q):
 
     q.put(("log", "ok", f"✓ Found {len(js_urls)} JavaScript file URLs — scanning for secrets..."))
 
-    # Scan JS files for secrets
     scanned = 0
     for url in list(js_urls)[:50]:
         try:
@@ -462,7 +461,6 @@ def api_jsrecon():
 
 # ─── ARCHIVE RECON (IMPROVED DETECTION) ──────────────────────────────────────
 def archive_recon_worker(target, q):
-    """Mine gau + waybackurls for endpoints, parameters, interesting paths"""
     urls = set()
 
     if cmd_exists("gau"):
@@ -487,7 +485,6 @@ def archive_recon_worker(target, q):
             q.put(("log", "ok", f"✓ waybackurls: {new_urls} new URLs"))
         except: pass
 
-    # ENHANCED CLASSIFICATION WITH DETECTION LOGS
     q.put(("log", "info", f"🔍 Analyzing {len(urls)} URLs..."))
     params = [u for u in urls if "=" in u]
     admin = [u for u in urls if any(x in u.lower() for x in ["admin","login","dashboard","panel","auth","api"])]
