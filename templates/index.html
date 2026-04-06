@@ -75,7 +75,7 @@ header {
   display:flex; align-items:center; justify-content:space-between;
   padding:0 20px; height:50px;
   background:var(--surface); border-bottom:1px solid var(--border2);
-  flex-shrink:0; position:relative; overflow:hidden;
+  flex-shrink:0; position:relative; overflow:visible; z-index:200;
 }
 header::after {
   content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
@@ -111,7 +111,7 @@ header::after {
 .status-chip.running .status-led,.status-chip.scanning .status-led { animation:blink 0.8s ease infinite; }
 
 /* ── PROVIDER FILTER ── */
-.filter-wrap { position:relative; }
+.filter-wrap { position:relative; z-index:2000; }
 
 .filter-btn {
   display:flex; align-items:center; gap:5px;
@@ -129,9 +129,8 @@ header::after {
 }
 
 .filter-dropdown {
-  display:none; position:absolute; top:calc(100% + 6px); right:0;
-  background:var(--surface); border:1px solid var(--border2);
-  border-radius:6px; width:220px; z-index:1001;
+  display:none; position:fixed; background:var(--surface); border:1px solid var(--border2);
+  border-radius:6px; width:220px; z-index:2001;
   box-shadow:0 8px 24px rgba(0,0,0,0.4);
   overflow:hidden;
 }
@@ -614,7 +613,7 @@ textarea { resize:none; line-height:1.5; }
       <button class="btn" id="btnArchive" onclick="startArchive()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--blue);"><span>📦</span> Archive Mine</button>
     </div>
 
-    <!-- STATS — fixed height, 2x2 grid -->
+    <!-- STATS -->
     <div class="stats">
       <div class="stat"><span class="stat-n blue"   id="sSubs">0</span><div class="stat-l">Subdomains</div></div>
       <div class="stat"><span class="stat-n green"  id="sCname">0</span><div class="stat-l">CNAMEs</div></div>
@@ -730,6 +729,31 @@ textarea { resize:none; line-height:1.5; }
 const S = { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[] };
 let logStart = Date.now();
 
+// Entertaining messages for JS Recon
+const entertainingMessages = [
+  "🔍 Hunting for JavaScript files...",
+  "📜 Scanning minified code...",
+  "🔐 Extracting potential secrets...",
+  "⚡ Parsing JavaScript AST...",
+  "🎯 Analyzing code patterns...",
+  "💡 Searching for API endpoints...",
+  "🔑 Looking for hardcoded credentials...",
+  "📡 Checking for token leaks...",
+  "🎭 Analyzing variable names...",
+  "🚀 Executing JavaScript deobfuscation...",
+  "💻 Evaluating code quality...",
+  "🔗 Tracking URL patterns...",
+  "🌐 Searching global scope...",
+  "📝 Analyzing function calls...",
+  "🔬 Performing deep inspection...",
+  "⚙️ Optimizing recon performance...",
+  "🎪 Entertaining recon in progress...",
+  "🏃 Accelerating analysis...",
+  "💬 Processing JavaScript comments...",
+  "🎯 Refining results..."
+];
+let messageIndex = 0;
+
 // ─── UTILS ──────────────────────────────────────────────────────────
 const ts = () => `+${((Date.now()-logStart)/1000).toFixed(1)}s`;
 
@@ -820,6 +844,17 @@ function listenSSE(url, options, handlers) {
   });
 }
 
+// ─── FILTER DROPDOWN FIX ──────────────────────────────────────────────────
+function positionFilterDropdown() {
+  const btn = document.getElementById('filterBtn');
+  const dropdown = document.getElementById('filterDropdown');
+  if (dropdown.classList.contains('open')) {
+    const rect = btn.getBoundingClientRect();
+    dropdown.style.top = (rect.bottom + 6) + 'px';
+    dropdown.style.left = (rect.right - 220) + 'px';
+  }
+}
+
 // ─── ENUMERATE ─────────────────────────────────────────────────────────
 async function startEnum() {
   const target = document.getElementById('targetInput').value.trim();
@@ -845,7 +880,7 @@ async function startEnum() {
 
   await listenSSE(`/api/enumerate?target=${encodeURIComponent(target)}`, {}, {
     log:   d => log(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':d.level==='err'?'l-err':'l-info'),
-    done:  d => { S.subdomains = d.subdomains; setStat('sSubs', d.count); log(`Enumeration done: ${d.count} subdomains`, 'l-ok'); },
+    done:  d => { S.subdomains = d.subdomains; setStat('sSubs', d.count); log(`✓ Enumeration done: ${d.count} subdomains`, 'l-ok'); },
     error: d => log('Error: '+d.msg, 'l-err'),
   });
 
@@ -860,7 +895,7 @@ async function startEnum() {
     done: d => {
       S.cnames = d.cname||[]; S.dead = d.dead||[]; S.aRecords = d.a||[];
       setStat('sCname', S.cnames.length); setStat('sDead', S.dead.length);
-      log(`Triage — ${S.cnames.length} CNAMEs · ${S.dead.length} dead · ${S.aRecords.length} A`, 'l-ok');
+      log(`✓ Triage — ${S.cnames.length} CNAMEs · ${S.dead.length} dead · ${S.aRecords.length} A`, 'l-ok');
     },
     error: d => log('Triage error: '+d.msg, 'l-err'),
   });
@@ -893,14 +928,22 @@ function initProviderFilter() {
   });
 
   document.addEventListener('click', e => {
-    if (!document.getElementById('filterWrap').contains(e.target)) {
+    const filterWrap = document.getElementById('filterWrap');
+    if (!filterWrap.contains(e.target) && document.getElementById('filterDropdown').classList.contains('open')) {
       document.getElementById('filterDropdown').classList.remove('open');
     }
   });
 }
 
 function toggleFilter() {
-  document.getElementById('filterDropdown').classList.toggle('open');
+  const dropdown = document.getElementById('filterDropdown');
+  dropdown.classList.toggle('open');
+  if (dropdown.classList.contains('open')) {
+    setTimeout(positionFilterDropdown, 0);
+    window.addEventListener('scroll', positionFilterDropdown);
+  } else {
+    window.removeEventListener('scroll', positionFilterDropdown);
+  }
 }
 
 function toggleProvider(p, el) {
@@ -957,7 +1000,7 @@ async function startScan() {
       S.vulnerable.push(d); setStat('sVuln', S.vulnerable.length);
       log(`⚠ VULN: ${d.sub} [${d.severity}][${d.confidence}]`, 'l-warn');
     },
-    done: d => log(`Scan complete — ${d.count} vulnerable`, d.count > 0 ? 'l-warn' : 'l-ok'),
+    done: d => log(`✓ Scan complete — ${d.count} vulnerable`, d.count > 0 ? 'l-warn' : 'l-ok'),
     error: d => log('Scan error: '+d.msg, 'l-err'),
   });
 
@@ -988,7 +1031,7 @@ async function startVerify() {
     done: d => {
       S.verified = d.verified||[];
       const confirmed = S.verified.filter(v => v.verified).length;
-      log(`Verification done — ${confirmed}/${S.vulnerable.length} confirmed`, 'l-ok');
+      log(`✓ Verification done — ${confirmed}/${S.vulnerable.length} confirmed`, 'l-ok');
     },
     error: d => log('Verify error: '+d.msg, 'l-err'),
   });
@@ -999,40 +1042,56 @@ async function startVerify() {
   setStage(4);
 }
 
-// ─── JS RECON ─────────────────────────────────────────────────────────
+// ─── JS RECON (WITH ENTERTAINING LOGS) ──────────────────────────────────
 async function startJSRecon() {
   const target = document.getElementById('targetInput').value.trim();
   if (!target) { alert('Enter target domain'); return; }
 
   document.getElementById('btnJSRecon').disabled = true;
-  log('Starting JS Recon...', 'l-info');
+  messageIndex = 0;
+  log('🕵️ Starting JS Recon (grab coffee, this takes a while...)...', 'l-info');
   setStatus('JS_RECON','running');
   setStage(6);
+
+  const entertainInterval = setInterval(() => {
+    if (messageIndex < entertainingMessages.length) {
+      log(entertainingMessages[messageIndex++], 'l-info');
+    }
+  }, 2500); // Every 2.5 seconds
 
   await listenSSE('/api/jsrecon', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ target, subdomains: S.subdomains }),
   }, {
-    log: d => log(d.msg, d.level==='ok'?'l-ok':'l-info'),
-    secret: d => log(`🔓 SECRET: ${d.type} in ${d.url}`, 'l-warn'),
+    log: d => { 
+      clearInterval(entertainInterval);
+      log(d.msg, d.level==='ok'?'l-ok':'l-info');
+      entertainInterval = setInterval(() => {
+        if (messageIndex < entertainingMessages.length) {
+          log(entertainingMessages[messageIndex++], 'l-info');
+        }
+      }, 2500);
+    },
+    secret: d => log(`🔓 SECRET FOUND: ${d.type} in ${d.url}`, 'l-warn'),
     done: d => {
-      log(`JS Recon complete — ${d.js_count} JS files, ${d.secrets.length} secrets`, 'l-ok');
+      clearInterval(entertainInterval);
+      log(`✓ JS Recon complete — ${d.js_count} JS files scanned, ${d.secrets.length} secrets found`, 'l-ok');
       S.jsRecon = d;
     },
-    error: d => log('JS Recon error: '+d.msg, 'l-err'),
+    error: d => { clearInterval(entertainInterval); log('JS Recon error: '+d.msg, 'l-err'); },
   });
 
   document.getElementById('btnJSRecon').disabled = false;
   setStatus('JS_DONE','ok');
 }
 
-// ─── ARCHIVE MINE ─────────────────────────────────────────────────────────
+// ─── ARCHIVE MINE ────────────────────────────────────────────────────────
 async function startArchive() {
   const target = document.getElementById('targetInput').value.trim();
   if (!target) { alert('Enter target domain'); return; }
 
   document.getElementById('btnArchive').disabled = true;
-  log('Starting Archive Mining...', 'l-info');
+  log('📦 Starting Archive Mining...', 'l-info');
   setStatus('ARCHIVE','running');
   setStage(7);
 
@@ -1042,12 +1101,13 @@ async function startArchive() {
   }, {
     log: d => log(d.msg, d.level==='ok'?'l-ok':'l-info'),
     done: d => {
-      log(`Archive Mining complete — ${d.total} total URLs`, 'l-ok');
+      log(`✓ Archive Mining complete — ${d.total} total URLs found`, 'l-ok');
       log(`  📊 Parameters: ${d.params.length}`, 'l-info');
-      log(`  🔐 Admin endpoints: ${d.admin.length}`, 'l-info');
+      log(`  🔐 Admin endpoints: ${d.admin.length}`, 'l-warn');
       log(`  📜 JS files: ${d.js.length}`, 'l-info');
       log(`  ⚠️  Interesting paths: ${d.interesting.length}`, 'l-warn');
       S.archive = d;
+      renderArchiveResults(d);
     },
     error: d => log('Archive error: '+d.msg, 'l-err'),
   });
@@ -1056,28 +1116,35 @@ async function startArchive() {
   setStatus('ARCHIVE_DONE','ok');
 }
 
-// ─── RENDER RESULTS ───────────────────────────────────────────────────────
+// ─── RENDER RESULTS ──────────────────────────────────────────────────────
 function renderResults() {
   let html = '';
   
-  if (S.subdomains.length) {
-    html += `<div class="result-section">ENUMERATED (${S.subdomains.length})</div>`;
-    S.subdomains.slice(0,100).forEach(s => {
-      html += `<div class="row-item" onclick="selectResult('enum',this)"><div class="ri-icon ri-a">S</div><div class="ri-sub">${escHtml(s)}</div></div>`;
+  // VULNERABLE RESULTS (PRIORITY)
+  if (S.vulnerable.length) {
+    html += `<div class="result-section">🚨 VULNERABLE (${S.vulnerable.length})</div>`;
+    S.vulnerable.forEach(v => {
+      html += `<div class="row-item" onclick="selectResult('vuln',this,${JSON.stringify(v).replace(/"/g,'&quot;')})"><div class="ri-icon ri-vuln">!</div><div class="ri-sub">${escHtml(v.sub)}</div><span class="badge b-crit">${v.severity}</span></div>`;
     });
   }
   
   if (S.cnames.length) {
     html += `<div class="result-section">CNAMES (${S.cnames.length})</div>`;
     S.cnames.slice(0,100).forEach(c => {
-      html += `<div class="row-item" onclick="selectResult('cname',this,${JSON.stringify(c).replace(/"/g,'&quot;')})"><div class="ri-icon ri-cname">C</div><div class="ri-sub">${escHtml(c.sub)}</div><span class="badge b-prov">${escHtml(c.provider)}</span></div>`;
+      const isVuln = S.vulnerable.some(v => v.sub === c.sub);
+      if (!isVuln) {
+        html += `<div class="row-item" onclick="selectResult('cname',this,${JSON.stringify(c).replace(/"/g,'&quot;')})"><div class="ri-icon ri-cname">C</div><div class="ri-sub">${escHtml(c.sub)}</div><span class="badge b-prov">${escHtml(c.provider)}</span></div>`;
+      }
     });
   }
   
-  if (S.vulnerable.length) {
-    html += `<div class="result-section">VULNERABLE (${S.vulnerable.length})</div>`;
-    S.vulnerable.forEach(v => {
-      html += `<div class="row-item" onclick="selectResult('vuln',this,${JSON.stringify(v).replace(/"/g,'&quot;')})"><div class="ri-icon ri-vuln">!</div><div class="ri-sub">${escHtml(v.sub)}</div><span class="badge b-crit">${v.severity}</span></div>`;
+  if (S.subdomains.length) {
+    html += `<div class="result-section">ENUMERATED (${S.subdomains.length})</div>`;
+    S.subdomains.slice(0,100).forEach(s => {
+      const inCnames = S.cnames.some(c => c.sub === s);
+      if (!inCnames) {
+        html += `<div class="row-item" onclick="selectResult('enum',this)"><div class="ri-icon ri-a">S</div><div class="ri-sub">${escHtml(s)}</div></div>`;
+      }
     });
   }
   
@@ -1089,6 +1156,42 @@ function renderResults() {
   }
 
   document.getElementById('resultsBox').innerHTML = html || '<div class="empty-state">No results yet</div>';
+}
+
+function renderArchiveResults(archive) {
+  log(`📧 Showing archive mining results in details panel`, 'l-info');
+  let html = `
+    <div class="detail-section">
+      <div class="detail-title">ARCHIVE MINING RESULTS</div>
+      <div class="drow"><div class="dk">Total URLs</div><div class="dv green">${archive.total}</div></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title">PARAMETERIZED URLs</div>
+      <div style="font-size:9px;color:var(--muted);max-height:100px;overflow-y:auto;">
+        ${archive.params.length ? archive.params.slice(0, 10).map(u => `<div style="word-break:break-all;margin:2px 0;">${escHtml(u)}</div>`).join('') : 'None found'}
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title">ADMIN ENDPOINTS</div>
+      <div style="font-size:9px;color:var(--muted);max-height:100px;overflow-y:auto;">
+        ${archive.admin.length ? archive.admin.slice(0, 10).map(u => `<div style="word-break:break-all;margin:2px 0;color:var(--yellow);">${escHtml(u)}</div>`).join('') : 'None found'}
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title">JAVASCRIPT FILES</div>
+      <div style="font-size:9px;color:var(--muted);max-height:100px;overflow-y:auto;">
+        ${archive.js.length ? archive.js.slice(0, 10).map(u => `<div style="word-break:break-all;margin:2px 0;color:var(--blue);">${escHtml(u)}</div>`).join('') : 'None found'}
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title">INTERESTING PATHS</div>
+      <div style="font-size:9px;color:var(--muted);max-height:100px;overflow-y:auto;">
+        ${archive.interesting.length ? archive.interesting.slice(0, 10).map(u => `<div style="word-break:break-all;margin:2px 0;color:var(--red);">${escHtml(u)}</div>`).join('') : 'None found'}
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('detailBox').innerHTML = html;
 }
 
 function selectResult(type, el, data) {
@@ -1156,7 +1259,7 @@ function closeModal() {
 function copyModalReport() {
   const text = document.getElementById('modalContent').textContent;
   navigator.clipboard.writeText(text).then(() => {
-    alert('Report copied!');
+    log('✓ Report copied to clipboard!', 'l-ok');
   });
 }
 
@@ -1203,7 +1306,7 @@ async function runBulkScan() {
   if (!input) { alert('Enter CNAMEs'); return; }
 
   const cnames = input.split('\n').map(l => l.trim()).filter(l => l);
-  log(`Bulk scanning ${cnames.length} CNAMEs...`, 'l-info');
+  log(`⚡ Bulk scanning ${cnames.length} CNAMEs...`, 'l-info');
 
   for (const cname of cnames) {
     const result = await fetch('/api/quickscan', {
@@ -1222,11 +1325,12 @@ async function runBulkScan() {
 
   setStat('sVuln', S.vulnerable.length);
   renderResults();
+  log(`✓ Bulk scan complete`, 'l-ok');
 }
 
 // Init on load
 document.addEventListener('DOMContentLoaded', () => {
-  log('TAKEOVER.HUNTER V2 ready', 'l-ok');
+  log('🚀 TAKEOVER.HUNTER V2 ready', 'l-ok');
 });
 </script>
 </body>
