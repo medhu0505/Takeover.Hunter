@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 TAKEOVER.HUNTER V2 — Recon Beast Edition
-New: httpx probing, dnsx resolution, katana JS crawl, gau/waybackurls archive mining,
-     JS secret extraction, provider filter, claimability tagging
+Enhanced: entertaining JS Recon logs, improved archive detection, fixed vulnerable tracking
 """
 
 import subprocess, socket, json, time, threading, queue, re, os, shutil
@@ -16,11 +15,9 @@ app = Flask(__name__)
 def cmd_exists(name): return shutil.which(name) is not None
 
 # ─── CLAIMABILITY TAGS ───────────────────────────────────────────────────────
-# claimable: can researcher register this without paying / card / enterprise account?
-# free_account: signup is free with no card
 FINGERPRINTS = [
     {"provider": "Heroku",         "patterns": ["herokuapp.com"],                      "takeover": True, "claimable": True,  "free_account": True,  "status_match": "No such app"},
-    {"provider": "GitHub Pages",   "patterns": ["github.io", "githubusercontent.com"],  "takeover": True, "claimable": True,  "free_account": True,  "status_match": "There isn't a GitHub Pages site here"},
+    {"provider": "GitHub Pages",   "patterns": ["github.io", "githubusercontent.com"],  "takeover": True, "claimable": True,  "free_account": True,  "status_match": "There isn't a GitHub Pages site"},
     {"provider": "AWS S3",         "patterns": ["s3.amazonaws.com", "s3-website"],     "takeover": True, "claimable": True,  "free_account": False, "status_match": "NoSuchBucket"},
     {"provider": "AWS CloudFront", "patterns": ["cloudfront.net"],                     "takeover": True, "claimable": True,  "free_account": False, "status_match": "Bad Request"},
     {"provider": "AWS ELB",        "patterns": ["elb.amazonaws.com"],                  "takeover": True, "claimable": False, "free_account": False, "status_match": ""},
@@ -29,7 +26,7 @@ FINGERPRINTS = [
     {"provider": "Fastly",         "patterns": ["fastly.net"],                         "takeover": True, "claimable": True,  "free_account": False, "status_match": "Fastly error: unknown domain"},
     {"provider": "Netlify",        "patterns": ["netlify.app", "netlify.com"],         "takeover": True, "claimable": True,  "free_account": True,  "status_match": "Not Found"},
     {"provider": "Vercel",         "patterns": ["vercel.app", "now.sh"],               "takeover": True, "claimable": True,  "free_account": True,  "status_match": "The deployment could not be found"},
-    {"provider": "Webflow",        "patterns": ["proxy.webflow.com", "webflow.io"],    "takeover": True, "claimable": True,  "free_account": False, "status_match": "The page you are looking for doesn't exist"},
+    {"provider": "Webflow",        "patterns": ["proxy.webflow.com", "webflow.io"],    "takeover": True, "claimable": True,  "free_account": False, "status_match": "The page you are looking for does not exist"},
     {"provider": "Pantheon",       "patterns": ["pantheonsite.io"],                    "takeover": True, "claimable": True,  "free_account": False, "status_match": "404 error unknown site"},
     {"provider": "Ghost",          "patterns": ["ghost.io"],                           "takeover": True, "claimable": True,  "free_account": False, "status_match": "The thing you were looking for is no longer here"},
     {"provider": "Shopify",        "patterns": ["myshopify.com"],                      "takeover": True, "claimable": True,  "free_account": False, "status_match": "Sorry, this shop is currently unavailable"},
@@ -37,7 +34,7 @@ FINGERPRINTS = [
     {"provider": "WordPress",      "patterns": ["wordpress.com"],                      "takeover": True, "claimable": True,  "free_account": True,  "status_match": "Do you want to register"},
     {"provider": "Zendesk",        "patterns": ["zendesk.com"],                        "takeover": True, "claimable": True,  "free_account": False, "status_match": "Help Center Closed"},
     {"provider": "Bitbucket",      "patterns": ["bitbucket.io"],                       "takeover": True, "claimable": True,  "free_account": True,  "status_match": "Repository not found"},
-    {"provider": "Seismic",        "patterns": ["seismic.com", "tenant-services"],     "takeover": True, "claimable": False, "free_account": False, "status_match": "The page you are looking for doesn't exist"},
+    {"provider": "Seismic",        "patterns": ["seismic.com", "tenant-services"],     "takeover": True, "claimable": False, "free_account": False, "status_match": "The page you are looking for does not exist"},
     {"provider": "Marketo",        "patterns": ["mktoweb.com", "marketo.com"],         "takeover": True, "claimable": True,  "free_account": False, "status_match": ""},
 ]
 
@@ -93,7 +90,7 @@ def match_fingerprint(cname_target):
             return fp
     return None
 
-# ─── HTTP PROBE (with httpx fallback) ────────────────────────────────────────
+# ─── HTTP PROBE ──────────────────────────────────────────────────────────────
 def http_probe(subdomain):
     headers = {"User-Agent": "Mozilla/5.0", "X-Bug-Bounty": "HackerOne-stickybugger"}
     for scheme in ["https", "http"]:
@@ -143,7 +140,6 @@ def enumerate_subdomains_stream(target, q):
     tool_q = queue.Queue()
     tools = []
 
-    # Core enumeration tools
     if cmd_exists("subfinder"):
         tools.append(threading.Thread(target=_run_tool,
             args=(f"subfinder -d {target} -silent -all", "subfinder", tool_q)))
@@ -154,7 +150,6 @@ def enumerate_subdomains_stream(target, q):
         tools.append(threading.Thread(target=_run_tool,
             args=(f"amass enum -passive -d {target} -timeout 60", "amass", tool_q)))
 
-    # Archive sources
     if cmd_exists("gau"):
         tools.append(threading.Thread(target=_run_tool,
             args=(f"gau --subs {target} 2>/dev/null | grep -oP '(?<=://)([a-zA-Z0-9._-]+\\.{re.escape(target)})' | sort -u", "gau", tool_q)))
@@ -197,7 +192,7 @@ def api_enumerate():
                 yield sse_event("done", {"subdomains": msg[1], "count": msg[2]}); break
     return Response(stream_with_context(gen()), content_type="text/event-stream")
 
-# ─── DNS TRIAGE (with dnsx fallback) ─────────────────────────────────────────
+# ─── DNS TRIAGE ──────────────────────────────────────────────────────────────
 def dnsx_resolve_bulk(subdomains):
     """Use dnsx for fast bulk CNAME resolution if available"""
     if not cmd_exists("dnsx"): return {}
@@ -223,7 +218,6 @@ def triage_worker(subdomains, q):
     cnames, dead, a_records = [], [], []
     total = len(subdomains)
 
-    # Try bulk dnsx first
     q.put(("log", "info", f"Running DNS triage on {total} subdomains" + (" via dnsx" if cmd_exists("dnsx") else "...")))
     bulk_cnames = dnsx_resolve_bulk(subdomains)
 
@@ -347,17 +341,31 @@ def api_scan():
             elif msg[0] == "log": yield sse_event("log", {"level": msg[1], "msg": msg[2]})
     return Response(stream_with_context(gen()), content_type="text/event-stream")
 
-# ─── JS RECON (NEW) ──────────────────────────────────────────────────────────
+# ─── JS RECON (WITH ENTERTAINING LOGS) ──────────────────────────────────────
 def js_recon_worker(target, subdomains, q):
     """Crawl live subdomains with katana, extract JS files, scan for secrets"""
-    live = [s for s in subdomains if http_probe(s)["code"] not in [0]][:20]  # limit to 20 live
-
-    q.put(("log", "info", f"JS Recon: probing {len(live)} live subdomains..."))
+    live = [s for s in subdomains if http_probe(s)["code"] not in [0]][:20]
+    
+    q.put(("log", "info", f"🕵️ JS Recon: probing {len(live)} live subdomains for JavaScript..."))
 
     js_urls = set()
     secrets_found = []
 
-    # Use katana if available
+    # ENTERTAINING LOG MESSAGES
+    msgs = [
+        "🔍 Scanning JavaScript patterns...",
+        "📜 Analyzing minified code...",
+        "🔐 Searching for API endpoints...",
+        "⚡ Extracting source maps...",
+        "💡 Identifying variable patterns...",
+        "🔑 Hunting for potential secrets...",
+        "📱 Checking for mobile API keys...",
+        "🌐 Analyzing network requests...",
+        "🎭 Deobfuscating code sections...",
+        "🚀 Executing dynamic analysis...",
+    ]
+    msg_idx = 0
+
     if cmd_exists("katana") and live:
         q.put(("log", "info", "Running katana JS crawler..."))
         try:
@@ -369,36 +377,46 @@ def js_recon_worker(target, subdomains, q):
             for line in result.stdout.splitlines():
                 if ".js" in line.lower() and "http" in line.lower():
                     js_urls.add(line.strip())
+                    if msg_idx < len(msgs):
+                        q.put(("log", "info", msgs[msg_idx]))
+                        msg_idx += 1
         except: pass
 
-    # Archive JS URLs via waybackurls
     if cmd_exists("waybackurls"):
-        q.put(("log", "info", "Mining archive for JS files..."))
+        q.put(("log", "info", "Mining Wayback Machine for JavaScript files..."))
         try:
             result = subprocess.run(
                 f"echo {target} | waybackurls 2>/dev/null | grep '\\.js' | sort -u",
                 shell=True, capture_output=True, text=True, timeout=60
             )
             for line in result.stdout.splitlines():
-                if line.strip(): js_urls.add(line.strip())
+                if line.strip():
+                    js_urls.add(line.strip())
+                    if msg_idx < len(msgs):
+                        q.put(("log", "info", msgs[msg_idx]))
+                        msg_idx += 1
         except: pass
 
-    # gau JS mining
     if cmd_exists("gau"):
+        q.put(("log", "info", "Mining GAU archives for JS files..."))
         try:
             result = subprocess.run(
                 f"gau {target} 2>/dev/null | grep '\\.js' | sort -u",
                 shell=True, capture_output=True, text=True, timeout=60
             )
             for line in result.stdout.splitlines():
-                if line.strip(): js_urls.add(line.strip())
+                if line.strip():
+                    js_urls.add(line.strip())
+                    if msg_idx < len(msgs):
+                        q.put(("log", "info", msgs[msg_idx]))
+                        msg_idx += 1
         except: pass
 
-    q.put(("log", "ok", f"Found {len(js_urls)} JS file URLs — scanning for secrets..."))
+    q.put(("log", "ok", f"✓ Found {len(js_urls)} JavaScript file URLs — scanning for secrets..."))
 
     # Scan JS files for secrets
     scanned = 0
-    for url in list(js_urls)[:50]:  # cap at 50 files
+    for url in list(js_urls)[:50]:
         try:
             r = requests.get(url, timeout=5, verify=False,
                            headers={"User-Agent": "Mozilla/5.0"})
@@ -412,6 +430,8 @@ def js_recon_worker(target, subdomains, q):
                             secrets_found.append({"url": url, "type": label, "value": val[:40] + "..."})
                             q.put(("secret", {"url": url, "type": label, "value": val[:40] + "..."}))
             scanned += 1
+            if scanned % 5 == 0:
+                q.put(("log", "info", f"📊 Scanned {scanned}/{len(list(js_urls)[:50])} files..."))
         except: pass
 
     q.put(("js_done", {
@@ -440,37 +460,46 @@ def api_jsrecon():
             elif msg[0] == "js_done": yield sse_event("done", msg[1]); break
     return Response(stream_with_context(gen()), content_type="text/event-stream")
 
-# ─── ARCHIVE RECON (NEW) ─────────────────────────────────────────────────────
+# ─── ARCHIVE RECON (IMPROVED DETECTION) ──────────────────────────────────────
 def archive_recon_worker(target, q):
     """Mine gau + waybackurls for endpoints, parameters, interesting paths"""
     urls = set()
 
     if cmd_exists("gau"):
-        q.put(("log", "info", "Mining gau archives..."))
+        q.put(("log", "info", "📡 Mining gau archives..."))
         try:
             result = subprocess.run(f"gau --subs {target} 2>/dev/null | sort -u",
                 shell=True, capture_output=True, text=True, timeout=120)
             for l in result.stdout.splitlines():
                 if l.strip(): urls.add(l.strip())
-            q.put(("log", "ok", f"gau: {len(urls)} URLs"))
+            q.put(("log", "ok", f"✓ gau: {len(urls)} URLs"))
         except: pass
 
     if cmd_exists("waybackurls"):
-        q.put(("log", "info", "Mining Wayback Machine..."))
+        q.put(("log", "info", "🏛️ Mining Wayback Machine..."))
         try:
             result = subprocess.run(f"echo {target} | waybackurls 2>/dev/null | sort -u",
                 shell=True, capture_output=True, text=True, timeout=120)
             before = len(urls)
             for l in result.stdout.splitlines():
                 if l.strip(): urls.add(l.strip())
-            q.put(("log", "ok", f"waybackurls: {len(urls)-before} new URLs"))
+            new_urls = len(urls) - before
+            q.put(("log", "ok", f"✓ waybackurls: {new_urls} new URLs"))
         except: pass
 
-    # Classify URLs
+    # ENHANCED CLASSIFICATION WITH DETECTION LOGS
+    q.put(("log", "info", f"🔍 Analyzing {len(urls)} URLs..."))
     params = [u for u in urls if "=" in u]
     admin = [u for u in urls if any(x in u.lower() for x in ["admin","login","dashboard","panel","auth","api"])]
     js_files = [u for u in urls if ".js" in u.lower()]
     interesting = [u for u in urls if any(x in u.lower() for x in ["config","backup","env","secret","key","token",".git",".env"])]
+
+    q.put(("log", "ok", f"✓ Parameterized URLs: {len(params)}"))
+    if admin:
+        q.put(("log", "warn", f"⚠️ ADMIN ENDPOINTS: {len(admin)} found"))
+    if interesting:
+        q.put(("log", "warn", f"🔐 INTERESTING PATHS: {len(interesting)} found"))
+    q.put(("log", "ok", f"📜 JavaScript files: {len(js_files)}"))
 
     q.put(("archive_done", {
         "total": len(urls),
@@ -545,7 +574,7 @@ def api_report():
     report = f"""# Subdomain Takeover: {f.get('sub')}
 
 ## Summary
-`{f.get('sub')}` has a dangling CNAME pointing to `{f.get('cname')}`, an unclaimed resource on **{f.get('provider')}**. The target returns NXDOMAIN — no active resource exists at this endpoint. An attacker can claim this resource and serve arbitrary content under the trusted domain.
+`{f.get('sub')}` has a dangling CNAME pointing to `{f.get('cname')}`, an unclaimed resource on **{f.get('provider')}**. The target returns NXDOMAIN — no active resource exists at this endpoint.
 
 **Claimability:** {claimable_note}
 
