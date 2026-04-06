@@ -47,7 +47,7 @@ body::before {
 }
 body::after {
   content:''; position:fixed; inset:0; pointer-events:none; z-index:9998; opacity:0.4;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='50'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='0.1'/%3E%3C/svg%3E");
 }
 
 ::selection { background:rgba(0,255,136,0.25); }
@@ -57,6 +57,18 @@ body::after {
 
 /* ── LAYOUT ── */
 .app { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+/* ── BREATHING ANIMATION ── */
+@keyframes breathe {
+  0%, 100% {
+    text-shadow: 0 0 20px var(--green-glow), 0 0 40px rgba(0,255,136,0.1);
+    filter: brightness(1);
+  }
+  50% {
+    text-shadow: 0 0 40px var(--green), 0 0 80px rgba(0,255,136,0.3);
+    filter: brightness(1.2);
+  }
+}
 
 /* ── HEADER ── */
 header {
@@ -74,8 +86,9 @@ header::after {
 
 .logo {
   font-family:var(--display); font-size:17px; font-weight:900; letter-spacing:0.12em;
-  color:var(--green); text-shadow:0 0 20px var(--green-glow),0 0 40px rgba(0,255,136,0.1);
+  color:var(--green);
   display:flex; align-items:center; gap:8px;
+  animation: breathe 2.5s ease-in-out infinite;
 }
 .logo-dot { width:6px;height:6px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);animation:blink 2s ease infinite; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
@@ -118,7 +131,7 @@ header::after {
 .filter-dropdown {
   display:none; position:absolute; top:calc(100% + 6px); right:0;
   background:var(--surface); border:1px solid var(--border2);
-  border-radius:6px; width:220px; z-index:999;
+  border-radius:6px; width:220px; z-index:1001;
   box-shadow:0 8px 24px rgba(0,0,0,0.4);
   overflow:hidden;
 }
@@ -158,7 +171,7 @@ header::after {
 .stage-bar {
   display:flex; align-items:center; padding:0 20px; height:36px;
   background:var(--bg2); border-bottom:1px solid var(--border);
-  flex-shrink:0; gap:0; overflow-x:auto;
+  flex-shrink:0; gap:0; overflow-x:auto; z-index:100;
 }
 .stage {
   display:flex; align-items:center; gap:7px; padding:0 12px; height:36px;
@@ -212,7 +225,7 @@ header::after {
 .corner-tag { font-size:8px; color:var(--dimmed); letter-spacing:0.1em; opacity:0.5; }
 
 /* ── INPUTS ── */
-.input-area { padding:12px 12px 8px; }
+.input-area { padding:12px 12px 8px; overflow-y:auto; max-height:60%; }
 .field+.field { margin-top:8px; }
 .flabel {
   font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);
@@ -261,10 +274,10 @@ textarea { resize:none; line-height:1.5; }
 .btn-purple:hover:not(:disabled){ background:rgba(191,158,255,0.15); box-shadow:0 0 12px rgba(191,158,255,0.15); }
 .btn:disabled { opacity:0.25; cursor:not-allowed; }
 
-/* ── STATS — FIXED HEIGHT, NO STRETCH ── */
+/* ── STATS ── */
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* Back to your original 4 columns */
+  grid-template-columns: repeat(4, 1fr);
   gap: 1px;
   background: var(--border);
   border-top: 1px solid var(--border);
@@ -273,47 +286,45 @@ textarea { resize:none; line-height:1.5; }
 }
 
 .stat {
-  background: var(--s1); /* Restored to original darker background */
+  background: var(--surface2);
   padding: 10px 8px;
   text-align: center;
-  transition: all 0.2s ease; /* Added for the hover effect */
+  transition: all 0.2s ease;
   cursor: default;
 }
 
-/* The "Nice" Hover effect you requested */
 .stat:hover {
-  background: var(--s2); /* Lights up the box slightly */
-  transform: translateY(-2px); /* Subtle lift */
+  background: var(--surface3);
+  transform: translateY(-2px);
   z-index: 5;
 }
 
 .stat-n {
-  font-size: 20px; /* Restored to original 20px */
+  font-size: 20px;
   font-weight: 700;
   display: block;
   line-height: 1;
   transition: all 0.3s ease;
 }
 
-/* Original Static Glows */
-.stat-n.blue   { color: var(--blue);   text-shadow: 0 0 10px rgba(88, 166, 255, 0.3); }
-.stat-n.green  { color: var(--green);  text-shadow: 0 0 10px rgba(63, 185, 80, 0.3); }
-.stat-n.red    { color: var(--red);    text-shadow: 0 0 10px rgba(248, 81, 73, 0.3); }
-.stat-n.yellow { color: var(--yellow); text-shadow: 0 0 10px rgba(210, 153, 34, 0.3); }
+.stat-n.blue   { color: var(--blue);   text-shadow: 0 0 10px rgba(77, 184, 255, 0.3); }
+.stat-n.green  { color: var(--green);  text-shadow: 0 0 10px rgba(0, 255, 136, 0.3); }
+.stat-n.red    { color: var(--red);    text-shadow: 0 0 10px rgba(255, 61, 90, 0.3); }
+.stat-n.yellow { color: var(--yellow); text-shadow: 0 0 10px rgba(255, 204, 0, 0.3); }
 
-/* Enhanced Glows on Hover */
 .stat:hover .stat-n.blue   { text-shadow: 0 0 20px var(--blue); }
 .stat:hover .stat-n.green  { text-shadow: 0 0 20px var(--green); }
 .stat:hover .stat-n.red    { text-shadow: 0 0 20px var(--red); }
 .stat:hover .stat-n.yellow { text-shadow: 0 0 20px var(--yellow); }
 
 .stat-l {
-  font-size: 9px; /* Restored to original 9px */
+  font-size: 9px;
   color: var(--muted);
   margin-top: 3px;
   text-transform: uppercase;
   letter-spacing: .08em;
 }
+
 /* ── QUICK SCAN SECTION ── */
 .qs-section { border-top:1px solid var(--border); flex-shrink:0; }
 .qs-toggle {
@@ -358,7 +369,6 @@ textarea { resize:none; line-height:1.5; }
 /* ── CENTER ── */
 .center { flex:1; display:flex; overflow:hidden; border-right:1px solid var(--border); }
 .mid-results { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-/* Agent log: wider now */
 .mid-logs    { width:300px; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; border-left:1px solid var(--border); }
 
 .scroll { flex:1; overflow-y:auto; overflow-x:hidden; }
@@ -420,35 +430,11 @@ textarea { resize:none; line-height:1.5; }
 .b-conf { background:rgba(0,255,136,0.12); color:var(--green); border-color:var(--border3); font-weight:700; }
 .b-info { background:var(--blue-bg);   color:var(--blue);   border-color:rgba(77,184,255,0.3); }
 
-/* ── RIGHT / INSPECTOR — narrower ── */
+/* ── RIGHT / INSPECTOR ── */
 .right {
   width:260px; flex-shrink:0; display:flex; flex-direction:column;
   overflow:hidden; background:var(--bg2);
 }
-
-/* ── DNS LOOKUP TOOL in inspector ── */
-.dns-tool { padding:10px 12px; border-bottom:1px solid var(--border); flex-shrink:0; }
-.dns-tool-row { display:flex; gap:6px; margin-top:6px; }
-.dns-tool-row input { flex:1; }
-.dns-tool-row select {
-  background:var(--surface2); border:1px solid var(--border2); color:var(--muted);
-  font-family:var(--mono); font-size:10px; border-radius:var(--r4); padding:4px 6px;
-  outline:none; cursor:pointer; flex-shrink:0;
-}
-.dns-tool-row select:focus { border-color:var(--green); color:var(--green); }
-.dns-btn {
-  background:rgba(0,255,136,0.08); border:1px solid var(--border3); color:var(--green);
-  font-family:var(--mono); font-size:10px; font-weight:700; padding:0 10px;
-  border-radius:var(--r4); cursor:pointer; flex-shrink:0; white-space:nowrap;
-  transition:all 0.15s;
-}
-.dns-btn:hover { background:rgba(0,255,136,0.16); box-shadow:0 0 10px rgba(0,255,136,0.12); }
-.dns-result {
-  margin-top:8px; background:var(--surface3); border:1px solid var(--border2);
-  border-radius:var(--r4); padding:8px 10px; font-size:10px; line-height:1.8;
-  color:var(--green); font-family:var(--mono); word-break:break-all; display:none;
-}
-.dns-result.show { display:block; }
 
 .detail-empty {
   display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -527,9 +513,9 @@ textarea { resize:none; line-height:1.5; }
 .modal-close { background:none; border:1px solid var(--border2); color:var(--muted); font-size:16px; cursor:pointer; line-height:1; padding:4px 8px; border-radius:var(--r4); transition:all 0.2s; }
 .modal-close:hover { border-color:var(--red); color:var(--red); }
 .modal-body { padding:16px; overflow-y:auto; flex:1; }
-.modal-report { background:var(--surface2); border:1px solid var(--border2); border-radius:var(--r8); padding:14px; font-size:11px; line-height:1.9; white-space:pre-wrap; word-break:break-word; color:var(--text); font-family:var(--mono); }
+.modal-report { background:var(--surface2); border:1px solid var(--border2); border-radius:var(--r8); padding:14px; font-size:11px; line-height:1.9; white-space:pre-wrap; word-break:break-word; color:var(--green); font-family:var(--mono); }
 .modal-footer { padding:12px 18px; border-top:1px solid var(--border2); display:flex; gap:8px; justify-content:flex-end; flex-shrink:0; background:var(--surface2); }
-.modal-btn { padding:7px 16px; border-radius:var(--r6); font-family:var(--mono); font-size:10px; font-weight:700; cursor:pointer; border:1px solid; transition:all 0.2s var(--ease); text-transform:uppercase; letter-spacing:0.08em; }
+.modal-btn { padding:7px 16px; border-radius:var(--r6); font-family:var(--mono); font-size:10px; font-weight:700; cursor:pointer; border:1px solid; transition:all 0.2s var(--ease); text-transform:uppercase; }
 .mb-sec { background:none; border-color:var(--border2); color:var(--muted); }
 .mb-sec:hover { border-color:var(--border3); color:var(--green); }
 .mb-pri { background:rgba(0,255,136,0.1); border-color:var(--green); color:var(--green); }
@@ -626,28 +612,14 @@ textarea { resize:none; line-height:1.5; }
       <button class="btn btn-orange" id="btnVerify" onclick="startVerify()" disabled><span>✓</span> Verify Findings</button>
       <button class="btn" id="btnJSRecon" onclick="startJSRecon()" disabled style="background:var(--surface2);border:1px solid var(--border2);color:var(--purple);"><span>🕵</span> JS Recon</button>
       <button class="btn" id="btnArchive" onclick="startArchive()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--blue);"><span>📦</span> Archive Mine</button>
-
-      <!-- CLAIMABLE ONLY TOGGLE -->
-      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-        <label style="font-size:9px;color:var(--muted);letter-spacing:0.08em;cursor:pointer;display:flex;align-items:center;gap:6px;">
-          <input type="checkbox" id="claimableOnly" style="accent-color:var(--green);width:12px;height:12px;">
-          CLAIMABLE ONLY
-        </label>
-      </div>
-
-      <!-- TOOL STATUS -->
-      <div style="margin-top:10px;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;">
-        <div style="font-size:9px;color:var(--muted);letter-spacing:0.1em;margin-bottom:6px;">TOOLS</div>
-        <div id="toolStatus" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
-      </div>
     </div>
 
     <!-- STATS — fixed height, 2x2 grid -->
     <div class="stats">
-      <div class="stat"><span class="stat-n c-blue"   id="sSubs">0</span><div class="stat-l">Subdomains</div></div>
-      <div class="stat"><span class="stat-n c-green"  id="sCname">0</span><div class="stat-l">CNAMEs</div></div>
-      <div class="stat"><span class="stat-n c-red"    id="sDead">0</span><div class="stat-l">Dead</div></div>
-      <div class="stat"><span class="stat-n c-yellow" id="sVuln">0</span><div class="stat-l">Vulns</div></div>
+      <div class="stat"><span class="stat-n blue"   id="sSubs">0</span><div class="stat-l">Subdomains</div></div>
+      <div class="stat"><span class="stat-n green"  id="sCname">0</span><div class="stat-l">CNAMEs</div></div>
+      <div class="stat"><span class="stat-n red"    id="sDead">0</span><div class="stat-l">Dead</div></div>
+      <div class="stat"><span class="stat-n yellow" id="sVuln">0</span><div class="stat-l">Vulns</div></div>
     </div>
 
     <!-- QUICK SCAN -->
@@ -711,7 +683,7 @@ textarea { resize:none; line-height:1.5; }
       </div>
     </div>
 
-    <!-- AGENT LOG — wider -->
+    <!-- AGENT LOG -->
     <div class="mid-logs">
       <div class="panel-hdr">
         <div class="panel-hdr-title"><div class="ph-accent"></div>Agent Log</div>
@@ -722,10 +694,8 @@ textarea { resize:none; line-height:1.5; }
 
   </div>
 
-  <!-- RIGHT: Inspector — narrower -->
+  <!-- RIGHT: Inspector -->
   <div class="right">
-    <!-- DNS Lookup Tool -->
-    
     <div class="scroll" id="detailBox">
       <div class="detail-empty">
         <div class="detail-icon">◎</div>
@@ -756,11 +726,11 @@ textarea { resize:none; line-height:1.5; }
 </div>
 
 <script>
-// ─── STATE ───────────────────────────────────────────────────────────────────
+// ─── STATE ──────────────────────────────────────────────────────────
 const S = { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[] };
 let logStart = Date.now();
 
-// ─── UTILS ───────────────────────────────────────────────────────────────────
+// ─── UTILS ──────────────────────────────────────────────────────────
 const ts = () => `+${((Date.now()-logStart)/1000).toFixed(1)}s`;
 
 function escHtml(s) {
@@ -785,7 +755,7 @@ function setStatus(text, mode='') {
 }
 
 function setStage(n) {
-  [1,2,3,4,5].forEach(i => {
+  [1,2,3,4,5,6,7].forEach(i => {
     const el = document.getElementById('stage'+i);
     if (!el) return;
     if (i < n) el.className = 'stage done';
@@ -804,7 +774,7 @@ function setStat(id, val) {
   if (map[id]) document.getElementById(map[id]).textContent = val;
 }
 
-// ─── COLLAPSIBLES ────────────────────────────────────────────────────────────
+// ─── COLLAPSIBLES ────────────────────────────────────────────────────────
 function toggleQS() {
   const body = document.getElementById('qsBody');
   const caret = document.getElementById('qsCaret');
@@ -819,7 +789,7 @@ function toggleBulk() {
   caret.classList.toggle('open', open);
 }
 
-// ─── SSE HELPER ──────────────────────────────────────────────────────────────
+// ─── SSE HELPER ─────────────────────────────────────────────────────────
 function listenSSE(url, options, handlers) {
   return new Promise((resolve, reject) => {
     fetch(url, options).then(res => {
@@ -850,7 +820,7 @@ function listenSSE(url, options, handlers) {
   });
 }
 
-// ─── ENUMERATE ───────────────────────────────────────────────────────────────
+// ─── ENUMERATE ─────────────────────────────────────────────────────────
 async function startEnum() {
   const target = document.getElementById('targetInput').value.trim();
   if (!target) { alert('Enter a target domain.'); return; }
@@ -863,6 +833,7 @@ async function startEnum() {
   document.getElementById('btnEnum').disabled = true;
   document.getElementById('btnScan').disabled = true;
   document.getElementById('btnVerify').disabled = true;
+  document.getElementById('btnJSRecon').disabled = true;
   document.getElementById('btnExport').style.display = 'none';
 
   setStage(1); setStatus('RUNNING','running');
@@ -897,15 +868,16 @@ async function startEnum() {
   renderResults();
   document.getElementById('btnEnum').disabled = false;
   document.getElementById('btnScan').disabled = S.cnames.length === 0;
+  document.getElementById('btnJSRecon').disabled = S.subdomains.length === 0;
   document.getElementById('btnExport').style.display = '';
   setStatus('TRIAGED','ok'); setStage(3);
 }
 
-// ─── PROVIDER FILTER ─────────────────────────────────────────────────────────
+// ─── PROVIDER FILTER ───────────────────────────────────────────────────────
 const PROVIDERS = [
   "Heroku","GitHub Pages","AWS S3","AWS CloudFront","AWS ELB",
-  "Azure","Fastly","Netlify","Vercel","Webflow","Pantheon",
-  "Ghost","Shopify","Tumblr","WordPress","Zendesk","Bitbucket","Seismic"
+  "Azure TM","Azure Web","Fastly","Netlify","Vercel","Webflow","Pantheon",
+  "Ghost","Shopify","Tumblr","WordPress","Zendesk","Bitbucket","Seismic","Marketo"
 ];
 const selectedProviders = new Set();
 
@@ -920,7 +892,6 @@ function initProviderFilter() {
     list.appendChild(item);
   });
 
-  // Close on outside click
   document.addEventListener('click', e => {
     if (!document.getElementById('filterWrap').contains(e.target)) {
       document.getElementById('filterDropdown').classList.remove('open');
@@ -965,7 +936,7 @@ function updateFilterBtn() {
 
 document.addEventListener('DOMContentLoaded', initProviderFilter);
 
-// ─── SCAN ────────────────────────────────────────────────────────────────────
+// ─── SCAN ───────────────────────────────────────────────────────────
 async function startScan() {
   if (!S.cnames.length) return;
   document.getElementById('btnScan').disabled = true;
@@ -993,486 +964,270 @@ async function startScan() {
   renderResults();
   document.getElementById('btnScan').disabled = false;
   document.getElementById('btnVerify').disabled = S.vulnerable.length === 0;
+  document.getElementById('btnJSRecon').disabled = false;
   setStatus(S.vulnerable.length > 0 ? `${S.vulnerable.length} VULNS` : 'CLEAN',
             S.vulnerable.length > 0 ? 'vulns' : 'ok');
   setProgress(1,1);
 }
 
-// ─── VERIFY ──────────────────────────────────────────────────────────────────
+// ─── VERIFY ─────────────────────────────────────────────────────────
 async function startVerify() {
   if (!S.vulnerable.length) return;
   document.getElementById('btnVerify').disabled = true;
-  S.verified = []; setStatus('VERIFYING','scanning'); setStage(4);
-  log(`Verifying ${S.vulnerable.length} finding(s)...`, 'l-info');
+  setStatus('VERIFYING','running');
+  log(`Verifying ${S.vulnerable.length} findings...`, 'l-info');
 
   await listenSSE('/api/verify', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ vulnerable: S.vulnerable }),
   }, {
-    log:      d => log(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':'l-info'),
     verified: d => {
-      S.verified.push(d);
-      log(d.verified ? `✓ CONFIRMED: ${d.sub}` : `✗ Not confirmed: ${d.sub}`,
-          d.verified ? 'l-ok' : 'l-warn');
+      if (d.verified) log(`✓ ${d.sub} CONFIRMED — reportable`, 'l-ok');
+      else log(`✗ ${d.sub} — not confirmed`, 'l-warn');
     },
     done: d => {
-      const conf = d.verified.filter(v=>v.verified).length;
-      log(`Verification done — ${conf}/${d.verified.length} confirmed`, conf>0?'l-ok':'l-warn');
+      S.verified = d.verified||[];
+      const confirmed = S.verified.filter(v => v.verified).length;
+      log(`Verification done — ${confirmed}/${S.vulnerable.length} confirmed`, 'l-ok');
     },
     error: d => log('Verify error: '+d.msg, 'l-err'),
   });
 
   renderResults();
   document.getElementById('btnVerify').disabled = false;
-  const confirmed = S.verified.filter(v=>v.verified).length;
-  setStatus(`${confirmed} CONFIRMED`, confirmed>0?'ok':'');
-  setProgress(1,1); setStage(5);
+  setStatus('VERIFIED','ok');
+  setStage(4);
 }
 
-// ─── QUICK SCAN ──────────────────────────────────────────────────────────────
-async function runQuickScan() {
-  const sub   = document.getElementById('qsSub').value.trim();
-  const cname = document.getElementById('qsCname').value.trim();
-  if (!cname) { alert('Enter a CNAME target.'); return; }
-
-  const btn = document.getElementById('btnQS');
-  const res = document.getElementById('qsResult');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Checking...';
-  res.className = 'qs-result show';
-  res.innerHTML = '<span style="color:var(--muted)">Probing...</span>';
-
-  setStage(5); setStatus('QUICK SCAN','scanning');
-  log(`Quick scan: ${cname}`, 'l-hi');
-
-  try {
-    const r = await fetch('/api/quickscan', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ sub: sub || cname, cname }),
-    });
-    const data = await r.json();
-
-    if (data.vulnerable) {
-      res.className = 'qs-result show vuln';
-      res.innerHTML = `
-        <div style="color:var(--red);font-weight:700;margin-bottom:6px">⚠ VULNERABLE — ${escHtml(data.provider)}</div>
-        <div style="color:var(--muted)">NXDOMAIN: <span style="color:${data.nxdomain?'var(--green)':'var(--red)'}">${data.nxdomain?'YES':'NO'}</span></div>
-        <div style="color:var(--muted)">HTTP: <span style="color:var(--yellow)">${data.http_code}</span></div>
-        <div style="color:var(--muted)">Confidence: <span style="color:var(--green)">${(data.confidence||'').toUpperCase()}</span></div>
-        <div style="color:var(--muted)">Severity: <span style="color:var(--red)">${data.severity}</span></div>
-        ${data.body_match?`<div style="color:var(--muted)">Match: <span style="color:var(--green)">"${escHtml(data.match_string)}"</span></div>`:''}
-      `;
-      log(`⚠ QUICK SCAN VULN: ${cname} → ${data.provider} [${data.severity}]`, 'l-warn');
-      // Inject into vulnerable list for report gen
-      if (!S.vulnerable.find(v=>v.cname===cname)) S.vulnerable.push(data);
-      setStat('sVuln', S.vulnerable.length);
-    } else {
-      res.className = 'qs-result show safe';
-      res.innerHTML = `
-        <div style="color:var(--green);font-weight:700;margin-bottom:6px">✓ NOT VULNERABLE</div>
-        <div style="color:var(--muted)">Provider: <span style="color:var(--text)">${escHtml(data.provider||'Unknown')}</span></div>
-        <div style="color:var(--muted)">NXDOMAIN: <span style="color:var(--red)">${data.nxdomain?'YES':'NO'}</span></div>
-        <div style="color:var(--muted)">HTTP: <span style="color:var(--yellow)">${data.http_code}</span></div>
-      `;
-      log(`✓ Quick scan clean: ${cname}`, 'l-ok');
-    }
-  } catch(e) {
-    res.innerHTML = `<span style="color:var(--red)">Error: ${escHtml(e.message)}</span>`;
-    log('Quick scan error: '+e.message, 'l-err');
-  }
-
-  btn.disabled = false;
-  btn.innerHTML = '<span>🔍</span> Check Vulnerability';
-  setStatus('IDLE','');
-}
-
-// ─── BULK SCAN ───────────────────────────────────────────────────────────────
-async function runBulkScan() {
-  const raw = document.getElementById('bulkInput').value.trim();
-  if (!raw) { alert('Paste subdomain list first.'); return; }
-
-  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
-  // Build fake cname_records — treat each line as sub = cname (user can paste sub SPACE cname too)
-  const records = lines.map(line => {
-    const parts = line.split(/\s+/);
-    return { sub: parts[0], cname: parts[1] || parts[0], provider:'Unknown', takeover_possible:true };
-  });
-
-  // Merge into S.cnames temporarily and run scan
-  S.cnames = records;
-  setStat('sCname', records.length);
-  log(`Bulk scan: ${records.length} entries`, 'l-hi');
-  await startScan();
-}
-
-// ─── DNS LOOKUP ──────────────────────────────────────────────────────────────
-async function runDnsLookup() {
-  const host = document.getElementById('dnsHost').value.trim();
-  const type = document.getElementById('dnsType').value;
-  if (!host) { alert('Enter a hostname.'); return; }
-
-  const res = document.getElementById('dnsResult');
-  res.className = 'dns-result show';
-  res.innerHTML = '<span class="spinner"></span>';
-
-  try {
-    const r = await fetch('/api/dns', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ host, type }),
-    });
-    const data = await r.json();
-    if (data.records && data.records.length) {
-      res.innerHTML = data.records.map(rec => `<div>${escHtml(rec)}</div>`).join('');
-    } else if (data.error) {
-      res.innerHTML = `<span style="color:var(--red)">${escHtml(data.error)}</span>`;
-    } else {
-      res.innerHTML = `<span style="color:var(--muted)">No records found</span>`;
-    }
-    log(`DNS ${type} ${host}: ${data.records?.length||0} records`, 'l-info');
-  } catch(e) {
-    res.innerHTML = `<span style="color:var(--red)">Error: ${escHtml(e.message)}</span>`;
-  }
-}
-
-// ─── RENDER ──────────────────────────────────────────────────────────────────
-function renderResults() {
-  const box = document.getElementById('resultsBox');
-  box.innerHTML = '';
-
-  const verifiedMap = {};
-  S.verified.forEach(v => verifiedMap[v.sub] = v);
-  const vulnMap = {};
-  S.vulnerable.forEach(v => vulnMap[v.sub] = v);
-
-  if (S.vulnerable.length > 0) {
-    addSection(box, `⚠ Vulnerable (${S.vulnerable.length})`);
-    S.vulnerable.forEach(v => {
-      const vd = verifiedMap[v.sub];
-      const isConf = vd && vd.verified;
-      const row = mkRow();
-      row.innerHTML = `
-        <div class="ri-icon ri-vuln">!</div>
-        <div class="ri-sub">${escHtml(v.sub)}</div>
-        <span class="badge b-prov">${escHtml(v.provider)}</span>
-        <span class="badge b-${v.severity==='Critical'?'crit':'high'}">${v.severity}</span>
-        ${isConf?'<span class="badge b-conf">✓</span>':''}
-      `;
-      row.onclick = () => showVulnDetail(v, vd||null);
-      box.appendChild(row);
-    });
-  }
-
-  const safeC = S.cnames.filter(c => !vulnMap[c.sub]);
-  if (safeC.length > 0) {
-    addSection(box, `CNAMEs (${safeC.length})`);
-    safeC.forEach(c => {
-      const row = mkRow();
-      row.innerHTML = `
-        <div class="ri-icon ri-cname">C</div>
-        <div class="ri-sub">${escHtml(c.sub)}</div>
-        <span class="badge b-prov">${escHtml(c.provider)}</span>
-        ${c.takeover_possible?'<span class="badge b-warn">POSSIBLE</span>':''}
-      `;
-      row.onclick = () => showCnameDetail(c);
-      box.appendChild(row);
-    });
-  }
-
-  if (S.dead.length > 0) {
-    addSection(box, `Dead Records (${S.dead.length})`);
-    S.dead.forEach(d => {
-      const row = mkRow();
-      row.innerHTML = `
-        <div class="ri-icon ri-dead">✗</div>
-        <div class="ri-sub">${escHtml(d.sub)}</div>
-        <span class="badge b-vuln">DEAD</span>
-      `;
-      row.onclick = () => showDeadDetail(d);
-      box.appendChild(row);
-    });
-  }
-
-  if (S.aRecords.length > 0) {
-    addSection(box, `A Records (${S.aRecords.length})`);
-    S.aRecords.forEach(a => {
-      const row = mkRow();
-      row.innerHTML = `
-        <div class="ri-icon ri-a">A</div>
-        <div class="ri-sub">${escHtml(a.sub)}</div>
-        <span class="badge b-ok">${escHtml(a.ips[0]||'')}</span>
-      `;
-      row.onclick = () => showADetail(a);
-      box.appendChild(row);
-    });
-  }
-
-  document.getElementById('centerTitle').textContent =
-    `Results — ${S.subdomains.length} subs · ${S.cnames.length} CNAMEs · ${S.dead.length} dead`;
-}
-
-function addSection(box, text) {
-  const s = document.createElement('div');
-  s.className = 'result-section';
-  s.textContent = text;
-  box.appendChild(s);
-}
-
-function mkRow() {
-  const r = document.createElement('div');
-  r.className = 'row-item';
-  return r;
-}
-
-// ─── DETAIL VIEWS ────────────────────────────────────────────────────────────
-function showVulnDetail(vuln, verified) {
-  const isConf = verified && verified.verified;
-  document.getElementById('detailBox').innerHTML = `
-    <div class="detail-section">
-      <div class="detail-title">Vuln Finding</div>
-      <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(vuln.sub)}</div></div>
-      <div class="drow"><div class="dk">CNAME</div><div class="dv blue">${escHtml(vuln.cname)}</div></div>
-      <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(vuln.provider)}</div></div>
-      <div class="drow"><div class="dk">NXDOMAIN</div><div class="dv ${vuln.nxdomain?'green':'red'}">${vuln.nxdomain?'YES — dangling':'NO'}</div></div>
-      <div class="drow"><div class="dk">HTTP</div><div class="dv yellow">${vuln.http_code}</div></div>
-      <div class="drow"><div class="dk">Body match</div><div class="dv ${vuln.body_match?'green':'red'}">${vuln.body_match?'✓ '+escHtml(vuln.match_string||''):'No'}</div></div>
-      <div class="drow"><div class="dk">Confidence</div><div class="dv ${vuln.confidence==='high'?'green':vuln.confidence==='medium'?'yellow':'red'}">${(vuln.confidence||'').toUpperCase()}</div></div>
-      <div class="drow"><div class="dk">Severity</div><div class="dv ${vuln.severity==='Critical'?'blue':'red'}">${vuln.severity}</div></div>
-    </div>
-    ${verified?`
-    <div class="detail-section">
-      <div class="detail-title">Verification</div>
-      <div class="drow"><div class="dk">NXDOMAIN #1</div><div class="dv ${verified.verify_nxdomain_1?'green':'red'}">${verified.verify_nxdomain_1?'YES':'NO'}</div></div>
-      <div class="drow"><div class="dk">NXDOMAIN #2</div><div class="dv ${verified.verify_nxdomain_2?'green':'red'}">${verified.verify_nxdomain_2?'YES':'NO'}</div></div>
-      <div class="drow"><div class="dk">HTTP probe</div><div class="dv">${verified.verify_http}</div></div>
-      <div class="drow"><div class="dk">CNAME live</div><div class="dv ${verified.cname_still_present?'green':'red'}">${verified.cname_still_present?'YES':'NO'}</div></div>
-      <div class="drow"><div class="dk">Status</div><div class="dv ${isConf?'green':'yellow'}" style="font-weight:700">${isConf?'✓ CONFIRMED':'⚠ UNCONFIRMED'}</div></div>
-    </div>`:''}
-    <div class="detail-section">
-      <div class="detail-title">Commands</div>
-      <div class="code-block">
-dig ${escHtml(vuln.sub)} CNAME +short<br>
-dig @8.8.8.8 ${escHtml(vuln.cname)}<br>
-curl -sk -w "%{http_code}" https://${escHtml(vuln.sub)}
-      </div>
-    </div>
-    ${isConf?`
-    <div class="detail-section">
-      <button class="action-btn action-btn-green" onclick="showReportForSub('${escHtml(vuln.sub)}')">
-        ⚡ Generate H1 Report
-      </button>
-    </div>`:''}
-  `;
-}
-
-function showCnameDetail(c) {
-  document.getElementById('detailBox').innerHTML = `
-    <div class="detail-section">
-      <div class="detail-title">CNAME Record</div>
-      <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(c.sub)}</div></div>
-      <div class="drow"><div class="dk">CNAME</div><div class="dv blue">${escHtml(c.cname)}</div></div>
-      <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(c.provider)}</div></div>
-      <div class="drow"><div class="dk">Takeover?</div><div class="dv ${c.takeover_possible?'yellow':'green'}">${c.takeover_possible?'Possible':'Safe'}</div></div>
-    </div>
-    <div class="detail-section">
-      <div class="code-block">dig ${escHtml(c.sub)} CNAME +short</div>
-    </div>
-    ${c.takeover_possible?`
-    <div class="detail-section">
-      <button class="action-btn action-btn-green" onclick="document.getElementById('qsSub').value='${escHtml(c.sub)}';document.getElementById('qsCname').value='${escHtml(c.cname)}';if(!document.getElementById('qsBody').classList.contains('open'))toggleQS();">
-        ⚡ Quick Scan This
-      </button>
-    </div>`:''}
-  `;
-}
-
-function showDeadDetail(d) {
-  document.getElementById('detailBox').innerHTML = `
-    <div class="detail-section">
-      <div class="detail-title">Dead Record</div>
-      <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(d.sub)}</div></div>
-      <div class="drow"><div class="dk">DNS</div><div class="dv red">No A or CNAME</div></div>
-    </div>
-    <div class="detail-section" style="font-size:10px;color:var(--muted);line-height:1.8">
-      No DNS resolution. May be previously active — worth manual investigation.
-    </div>
-    <div class="detail-section">
-      <div class="code-block">dig ${escHtml(d.sub)} ANY +short</div>
-    </div>
-  `;
-}
-
-function showADetail(a) {
-  document.getElementById('detailBox').innerHTML = `
-    <div class="detail-section">
-      <div class="detail-title">A Record</div>
-      <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(a.sub)}</div></div>
-      <div class="drow"><div class="dk">IPs</div><div class="dv green">${(a.ips||[]).join(', ')}</div></div>
-    </div>
-    <div class="detail-section">
-      <div class="code-block">dig ${escHtml(a.sub)} A +short</div>
-    </div>
-  `;
-}
-
-// ─── REPORT ──────────────────────────────────────────────────────────────────
-function findFindingBySub(sub) {
-  return S.verified.find(v=>v.sub===sub) || S.vulnerable.find(v=>v.sub===sub) || null;
-}
-
-async function showReportForSub(sub) {
-  const finding = findFindingBySub(sub);
-  if (!finding) { alert('No finding data — try re-verifying.'); return; }
-  const h1 = document.getElementById('h1user').value.trim() || 'stickybugger';
-  const res = await fetch('/api/report', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ finding, h1_user: h1 }),
-  });
-  let data = null;
-  try { data = await res.json(); } catch(e) {}
-  document.getElementById('modalContent').textContent = data?.report || data?.error || 'Failed.';
-  document.getElementById('reportModal').style.display = 'flex';
-}
-
-function closeModal() { document.getElementById('reportModal').style.display = 'none'; }
-
-function copyModalReport() {
-  navigator.clipboard.writeText(document.getElementById('modalContent').textContent).then(() => {
-    const btn = document.querySelector('.mb-pri');
-    const o = btn.textContent; btn.textContent = '✓ Copied!';
-    setTimeout(() => btn.textContent = o, 1500);
-  });
-}
-
-function exportResults() {
-  const blob = new Blob([JSON.stringify({
-    subdomains:S.subdomains, cnames:S.cnames, dead:S.dead,
-    vulnerable:S.vulnerable, verified:S.verified
-  }, null, 2)], { type:'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `takeover-${document.getElementById('targetInput').value}-${Date.now()}.json`;
-  a.click();
-}
-
-// ─── KEY BINDINGS ─────────────────────────────────────────────────────────────
-document.getElementById('targetInput').addEventListener('keydown', e => { if(e.key==='Enter') startEnum(); });
-document.getElementById('qsSub').addEventListener('keydown',   e => { if(e.key==='Enter') runQuickScan(); });
-document.getElementById('qsCname').addEventListener('keydown', e => { if(e.key==='Enter') runQuickScan(); });
-document.getElementById('dnsHost').addEventListener('keydown', e => { if(e.key==='Enter') runDnsLookup(); });
-
-// ─── TOOL STATUS CHECK ───────────────────────────────────────────────────────
-async function checkTools() {
-  try {
-    const res = await fetch('/api/tools');
-    const tools = await res.json();
-    const container = document.getElementById('toolStatus');
-    container.innerHTML = '';
-    Object.entries(tools).forEach(([name, available]) => {
-      const chip = document.createElement('div');
-      chip.style.cssText = `font-size:8px;padding:2px 6px;border-radius:3px;letter-spacing:0.06em;
-        background:${available ? 'var(--green-bg)' : 'var(--surface3)'};
-        color:${available ? 'var(--green)' : 'var(--dimmed)'};
-        border:1px solid ${available ? 'var(--border2)' : 'transparent'};`;
-      chip.textContent = (available ? '● ' : '○ ') + name;
-      chip.title = available ? `${name} installed` : `${name} not found — install for full power`;
-      container.appendChild(chip);
-    });
-  } catch(e) {}
-}
-document.addEventListener('DOMContentLoaded', checkTools);
-
-// ─── JS RECON ────────────────────────────────────────────────────────────────
+// ─── JS RECON ─────────────────────────────────────────────────────────
 async function startJSRecon() {
   const target = document.getElementById('targetInput').value.trim();
-  if (!target) return;
+  if (!target) { alert('Enter target domain'); return; }
+
   document.getElementById('btnJSRecon').disabled = true;
-  setStage(6); setStatus('JS RECON','scanning');
-  log('Starting JS recon — crawling with katana + archive mining...', 'l-info');
+  log('Starting JS Recon...', 'l-info');
+  setStatus('JS_RECON','running');
+  setStage(6);
 
   await listenSSE('/api/jsrecon', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ target, subdomains: S.subdomains || [] }),
+    body: JSON.stringify({ target, subdomains: S.subdomains }),
   }, {
-    log: d => log(d.msg, d.level === 'ok' ? 'l-ok' : d.level === 'err' ? 'l-err' : 'l-info'),
-    secret: d => log(`🔑 SECRET [${d.type}] in ${d.url}: ${d.value}`, 'l-warn'),
+    log: d => log(d.msg, d.level==='ok'?'l-ok':'l-info'),
+    secret: d => log(`🔓 SECRET: ${d.type} in ${d.url}`, 'l-warn'),
     done: d => {
-      log(`JS Recon complete — ${d.js_count} JS files found, ${d.secrets?.length || 0} secrets extracted`, 'l-ok');
-      if (d.secrets?.length) {
-        log(`⚠ ${d.secrets.length} potential secrets found — review manually`, 'l-warn');
-      }
-      setStatus('IDLE','');
-      document.getElementById('btnJSRecon').disabled = false;
+      log(`JS Recon complete — ${d.js_count} JS files, ${d.secrets.length} secrets`, 'l-ok');
+      S.jsRecon = d;
     },
-    error: d => log('JS recon error: '+d.msg, 'l-err'),
+    error: d => log('JS Recon error: '+d.msg, 'l-err'),
   });
+
+  document.getElementById('btnJSRecon').disabled = false;
+  setStatus('JS_DONE','ok');
 }
 
-// ─── ARCHIVE RECON ───────────────────────────────────────────────────────────
+// ─── ARCHIVE MINE ─────────────────────────────────────────────────────────
 async function startArchive() {
   const target = document.getElementById('targetInput').value.trim();
-  if (!target) return;
+  if (!target) { alert('Enter target domain'); return; }
+
   document.getElementById('btnArchive').disabled = true;
-  setStage(7); setStatus('ARCHIVE MINE','scanning');
-  log('Mining gau + waybackurls for archived endpoints...', 'l-info');
+  log('Starting Archive Mining...', 'l-info');
+  setStatus('ARCHIVE','running');
+  setStage(7);
 
   await listenSSE('/api/archive', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ target }),
   }, {
-    log: d => log(d.msg, d.level === 'ok' ? 'l-ok' : 'l-info'),
+    log: d => log(d.msg, d.level==='ok'?'l-ok':'l-info'),
     done: d => {
-      log(`Archive mine complete — ${d.total} total URLs`, 'l-ok');
-      log(`  → ${d.params?.length} URLs with params`, 'l-info');
-      log(`  → ${d.admin?.length} admin/auth endpoints`, d.admin?.length ? 'l-warn' : 'l-info');
-      log(`  → ${d.js?.length} JS files`, 'l-info');
-      log(`  → ${d.interesting?.length} interesting paths (config/backup/env)`, d.interesting?.length ? 'l-warn' : 'l-info');
-      if (d.interesting?.length) {
-        d.interesting.slice(0,5).forEach(u => log(`  ⚠ ${u}`, 'l-warn'));
-      }
-      setStatus('IDLE','');
-      document.getElementById('btnArchive').disabled = false;
+      log(`Archive Mining complete — ${d.total} total URLs`, 'l-ok');
+      log(`  📊 Parameters: ${d.params.length}`, 'l-info');
+      log(`  🔐 Admin endpoints: ${d.admin.length}`, 'l-info');
+      log(`  📜 JS files: ${d.js.length}`, 'l-info');
+      log(`  ⚠️  Interesting paths: ${d.interesting.length}`, 'l-warn');
+      S.archive = d;
     },
     error: d => log('Archive error: '+d.msg, 'l-err'),
   });
+
+  document.getElementById('btnArchive').disabled = false;
+  setStatus('ARCHIVE_DONE','ok');
 }
 
-// ─── PATCH SCAN TO USE CLAIMABLE FILTER ──────────────────────────────────────
-const _origStartScan = startScan;
-// startScan already reads selectedProviders — patch body to include claimable_only
-const __patchedScan = async function() {
-  if (!S.cnames.length) return;
-  document.getElementById('btnScan').disabled = true;
-  document.getElementById('btnVerify').disabled = true;
-  S.vulnerable = []; setStat('sVuln', 0);
-  setStatus('SCANNING','scanning');
+// ─── RENDER RESULTS ───────────────────────────────────────────────────────
+function renderResults() {
+  let html = '';
+  
+  if (S.subdomains.length) {
+    html += `<div class="result-section">ENUMERATED (${S.subdomains.length})</div>`;
+    S.subdomains.slice(0,100).forEach(s => {
+      html += `<div class="row-item" onclick="selectResult('enum',this)"><div class="ri-icon ri-a">S</div><div class="ri-sub">${escHtml(s)}</div></div>`;
+    });
+  }
+  
+  if (S.cnames.length) {
+    html += `<div class="result-section">CNAMES (${S.cnames.length})</div>`;
+    S.cnames.slice(0,100).forEach(c => {
+      html += `<div class="row-item" onclick="selectResult('cname',this,${JSON.stringify(c).replace(/"/g,'&quot;')})"><div class="ri-icon ri-cname">C</div><div class="ri-sub">${escHtml(c.sub)}</div><span class="badge b-prov">${escHtml(c.provider)}</span></div>`;
+    });
+  }
+  
+  if (S.vulnerable.length) {
+    html += `<div class="result-section">VULNERABLE (${S.vulnerable.length})</div>`;
+    S.vulnerable.forEach(v => {
+      html += `<div class="row-item" onclick="selectResult('vuln',this,${JSON.stringify(v).replace(/"/g,'&quot;')})"><div class="ri-icon ri-vuln">!</div><div class="ri-sub">${escHtml(v.sub)}</div><span class="badge b-crit">${v.severity}</span></div>`;
+    });
+  }
+  
+  if (S.dead.length) {
+    html += `<div class="result-section">DEAD (${S.dead.length})</div>`;
+    S.dead.slice(0,50).forEach(d => {
+      html += `<div class="row-item"><div class="ri-icon ri-dead">✕</div><div class="ri-sub">${escHtml(d.sub)}</div></div>`;
+    });
+  }
 
-  const filter = [...selectedProviders];
-  const claimableOnly = document.getElementById('claimableOnly').checked;
-  const filterMsg = filter.length ? `Filtering: ${filter.join(', ')}` : claimableOnly ? 'Claimable only' : 'All providers';
-  log(`Scanning ${S.cnames.length} CNAMEs for takeover vulns... [${filterMsg}]`, 'l-info');
+  document.getElementById('resultsBox').innerHTML = html || '<div class="empty-state">No results yet</div>';
+}
 
-  await listenSSE('/api/scan', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ cname_records: S.cnames, provider_filter: filter, claimable_only: claimableOnly }),
-  }, {
-    progress: d => setProgress(d.done, d.total),
-    vuln: d => {
-      S.vulnerable.push(d); setStat('sVuln', S.vulnerable.length);
-      const claimTag = d.claimable ? (d.free_account ? ' [FREE POC✓]' : ' [POC$]') : ' [NO POC]';
-      log(`⚠ VULN: ${d.sub} [${d.severity}][${d.confidence}]${claimTag}`, 'l-warn');
-    },
-    done: d => log(`Scan complete — ${d.count} vulnerable`, d.count > 0 ? 'l-warn' : 'l-ok'),
-    error: d => log('Scan error: '+d.msg, 'l-err'),
+function selectResult(type, el, data) {
+  document.querySelectorAll('.row-item').forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  
+  if (type === 'vuln' && data) {
+    showDetail(data);
+  }
+}
+
+function showDetail(vuln) {
+  let html = `
+    <div class="detail-section">
+      <div class="detail-title">SUBDOMAIN</div>
+      <div class="drow"><div class="dk">Host</div><div class="dv">${escHtml(vuln.sub)}</div></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title">CNAME TARGET</div>
+      <div class="drow"><div class="dk">CNAME</div><div class="dv blue">${escHtml(vuln.cname)}</div></div>
+      <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(vuln.provider)}</div></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title">VULNERABILITY</div>
+      <div class="drow"><div class="dk">Status</div><div class="dv red">VULNERABLE</div></div>
+      <div class="drow"><div class="dk">Severity</div><div class="dv red">${vuln.severity}</div></div>
+      <div class="drow"><div class="dk">Confidence</div><div class="dv green">${vuln.confidence.toUpperCase()}</div></div>
+      <div class="drow"><div class="dk">NXDOMAIN</div><div class="dv ${vuln.nxdomain?'green':'yellow'}">${vuln.nxdomain?'YES':'NO'}</div></div>
+      <div class="drow"><div class="dk">HTTP Code</div><div class="dv">${vuln.http_code}</div></div>
+    </div>
+  `;
+  
+  if (vuln.claimable) {
+    html += `<div class="detail-section">
+      <div class="detail-title">CLAIMABILITY</div>
+      <div class="drow"><div class="dk">Claimable</div><div class="dv green">YES</div></div>
+      <div class="drow"><div class="dk">Free Account</div><div class="dv ${vuln.free_account?'green':'yellow'}">${vuln.free_account?'YES':'NO'}</div></div>
+    </div>`;
+  }
+  
+  html += `<button class="action-btn action-btn-green" onclick="showReport(${JSON.stringify(vuln).replace(/"/g,'&quot;')})">Generate Report</button>`;
+  
+  document.getElementById('detailBox').innerHTML = html;
+}
+
+function showReport(vuln) {
+  fetch('/api/report', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      finding: vuln,
+      h1_user: document.getElementById('h1user').value || 'stickybugger',
+      platform: 'HackerOne'
+    })
+  }).then(r => r.json()).then(d => {
+    document.getElementById('modalContent').textContent = d.report;
+    document.getElementById('reportModal').style.display = 'flex';
   });
+}
 
+function closeModal() {
+  document.getElementById('reportModal').style.display = 'none';
+}
+
+function copyModalReport() {
+  const text = document.getElementById('modalContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Report copied!');
+  });
+}
+
+function exportResults() {
+  const data = { subdomains: S.subdomains, cnames: S.cnames, vulnerable: S.vulnerable };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'takeover-results.json';
+  a.click();
+}
+
+// ─── QUICK SCAN ───────────────────────────────────────────────────────────
+async function runQuickScan() {
+  const sub = document.getElementById('qsSub').value.trim();
+  const cname = document.getElementById('qsCname').value.trim();
+  if (!cname) { alert('Enter CNAME target'); return; }
+
+  const result = await fetch('/api/quickscan', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sub, cname })
+  }).then(r => r.json());
+
+  const html = `
+    <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(result.sub)}</div></div>
+    <div class="drow"><div class="dk">CNAME</div><div class="dv">${escHtml(result.cname)}</div></div>
+    <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(result.provider)}</div></div>
+    <div class="drow"><div class="dk">Status</div><div class="dv ${result.vulnerable?'red':'green'}">${result.vulnerable?'VULNERABLE':'SAFE'}</div></div>
+    <div class="drow"><div class="dk">Confidence</div><div class="dv">${result.confidence.toUpperCase()}</div></div>
+  `;
+
+  const el = document.getElementById('qsResult');
+  el.innerHTML = html;
+  el.classList.add('show');
+  el.classList.toggle('vuln', result.vulnerable);
+  el.classList.toggle('safe', !result.vulnerable);
+}
+
+// ─── BULK SCAN ────────────────────────────────────────────────────────
+async function runBulkScan() {
+  const input = document.getElementById('bulkInput').value.trim();
+  if (!input) { alert('Enter CNAMEs'); return; }
+
+  const cnames = input.split('\n').map(l => l.trim()).filter(l => l);
+  log(`Bulk scanning ${cnames.length} CNAMEs...`, 'l-info');
+
+  for (const cname of cnames) {
+    const result = await fetch('/api/quickscan', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ cname })
+    }).then(r => r.json());
+
+    if (result.vulnerable) {
+      log(`⚠ ${result.sub || cname} — VULNERABLE [${result.severity}]`, 'l-warn');
+      S.vulnerable.push(result);
+    } else {
+      log(`✓ ${result.sub || cname} — safe`, 'l-ok');
+    }
+  }
+
+  setStat('sVuln', S.vulnerable.length);
   renderResults();
-  document.getElementById('btnVerify').disabled = S.vulnerable.length === 0;
-  document.getElementById('btnScan').disabled = false;
-  setStage(3); setStatus(S.vulnerable.length ? 'VULNS' : 'OK', S.vulnerable.length ? 'vulns' : 'ok');
-};
-// Override startScan with patched version
-window.startScan = __patchedScan;
+}
 
+// Init on load
+document.addEventListener('DOMContentLoaded', () => {
+  log('TAKEOVER.HUNTER V2 ready', 'l-ok');
+});
 </script>
 </body>
 </html>
