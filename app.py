@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-TAKEOVER.HUNTER V2 — Recon Beast Edition
-Enhanced: entertaining JS Recon logs, improved archive detection, fixed vulnerable tracking
+TAKEOVER.HUNTER V2 — Reon Beast Edition
+Fixed: JS Recon with real logs, proper error handling, archive detection
 """
 
 import subprocess, socket, json, time, threading, queue, re, os, shutil
@@ -338,87 +338,88 @@ def api_scan():
             elif msg[0] == "log": yield sse_event("log", {"level": msg[1], "msg": msg[2]})
     return Response(stream_with_context(gen()), content_type="text/event-stream")
 
-# ─── JS RECON (WITH ENTERTAINING LOGS) ──────────────────────────────────────
+# ─── JS RECON (FIXED - REAL LOGS) ──────────────────────────────────────────────
 def js_recon_worker(target, subdomains, q):
-    live = [s for s in subdomains if http_probe(s)["code"] not in [0]][:20]
+    """Extract JS files from live subdomains and scan for secrets"""
     
-    q.put(("log", "info", f"🕵️ JS Recon: probing {len(live)} live subdomains for JavaScript..."))
-
+    if not subdomains:
+        q.put(("log", "warn", "No subdomains provided for JS Recon"))
+        q.put(("js_done", {"js_urls": [], "js_count": 0, "secrets": [], "scanned": 0}))
+        return
+    
+    q.put(("log", "info", f"JS Recon: {len(subdomains)} subdomains"))
+    
     js_urls = set()
     secrets_found = []
 
-    # ENTERTAINING LOG MESSAGES
-    msgs = [
-        "🔍 Scanning JavaScript patterns...",
-        "📜 Analyzing minified code...",
-        "🔐 Searching for API endpoints...",
-        "⚡ Extracting source maps...",
-        "💡 Identifying variable patterns...",
-        "🔑 Hunting for potential secrets...",
-        "📱 Checking for mobile API keys...",
-        "🌐 Analyzing network requests...",
-        "🎭 Deobfuscating code sections...",
-        "🚀 Executing dynamic analysis...",
-        "💻 Evaluating code quality...",
-        "🔗 Tracking URL patterns...",
-        "📝 Analyzing function calls...",
-        "🎯 Refining results...",
-    ]
-    msg_idx = 0
-
-    if cmd_exists("katana") and live:
-        q.put(("log", "info", "Running katana JS crawler..."))
+    # Method 1: Katana (Live crawling)
+    if cmd_exists("katana"):
+        q.put(("log", "info", "katana: scanning live endpoints..."))
         try:
-            inp = "\n".join([f"https://{s}" for s in live[:10]])
-            result = subprocess.run(
-                ["katana", "-silent", "-jc", "-d", "2", "-f", "endpoint"],
-                input=inp, capture_output=True, text=True, timeout=120
-            )
-            for line in result.stdout.splitlines():
-                if ".js" in line.lower() and "http" in line.lower():
-                    js_urls.add(line.strip())
-                    if msg_idx < len(msgs):
-                        q.put(("log", "info", msgs[msg_idx]))
-                        msg_idx += 1
-        except: pass
+            live_subs = [s for s in subdomains if http_probe(s)["code"] not in [0]][:10]
+            if live_subs:
+                inp = "\n".join([f"https://{s}" for s in live_subs])
+                result = subprocess.run(
+                    ["katana", "-silent", "-jc", "-d", "2", "-f", "endpoint"],
+                    input=inp, capture_output=True, text=True, timeout=60
+                )
+                for line in result.stdout.splitlines():
+                    if ".js" in line.lower():
+                        js_urls.add(line.strip())
+                if js_urls:
+                    q.put(("log", "ok", f"katana: {len(js_urls)} JS files"))
+        except Exception as e:
+            q.put(("log", "err", f"katana: {str(e)[:40]}"))
 
+    # Method 2: Wayback Machine
     if cmd_exists("waybackurls"):
-        q.put(("log", "info", "Mining Wayback Machine for JavaScript files..."))
+        q.put(("log", "info", "waybackurls: mining archive..."))
         try:
             result = subprocess.run(
                 f"echo {target} | waybackurls 2>/dev/null | grep '\\.js' | sort -u",
                 shell=True, capture_output=True, text=True, timeout=60
             )
+            before = len(js_urls)
             for line in result.stdout.splitlines():
                 if line.strip():
                     js_urls.add(line.strip())
-                    if msg_idx < len(msgs):
-                        q.put(("log", "info", msgs[msg_idx]))
-                        msg_idx += 1
-        except: pass
+            added = len(js_urls) - before
+            if added > 0:
+                q.put(("log", "ok", f"waybackurls: +{added} JS files"))
+        except Exception as e:
+            q.put(("log", "err", f"waybackurls: {str(e)[:40]}"))
 
+    # Method 3: GAU archive
     if cmd_exists("gau"):
-        q.put(("log", "info", "Mining GAU archives for JS files..."))
+        q.put(("log", "info", "gau: mining archives..."))
         try:
             result = subprocess.run(
                 f"gau {target} 2>/dev/null | grep '\\.js' | sort -u",
                 shell=True, capture_output=True, text=True, timeout=60
             )
+            before = len(js_urls)
             for line in result.stdout.splitlines():
                 if line.strip():
                     js_urls.add(line.strip())
-                    if msg_idx < len(msgs):
-                        q.put(("log", "info", msgs[msg_idx]))
-                        msg_idx += 1
-        except: pass
+            added = len(js_urls) - before
+            if added > 0:
+                q.put(("log", "ok", f"gau: +{added} JS files"))
+        except Exception as e:
+            q.put(("log", "err", f"gau: {str(e)[:40]}"))
 
-    q.put(("log", "ok", f"✓ Found {len(js_urls)} JavaScript file URLs — scanning for secrets..."))
+    if not js_urls:
+        q.put(("log", "warn", "No JS files found"))
+        q.put(("js_done", {"js_urls": [], "js_count": 0, "secrets": [], "scanned": 0}))
+        return
 
+    q.put(("log", "ok", f"Total: {len(js_urls)} JS files"))
+    q.put(("log", "info", f"Scanning {min(50, len(js_urls))} for secrets..."))
+
+    # Scan JS for secrets
     scanned = 0
     for url in list(js_urls)[:50]:
         try:
-            r = requests.get(url, timeout=5, verify=False,
-                           headers={"User-Agent": "Mozilla/5.0"})
+            r = requests.get(url, timeout=5, verify=False, headers={"User-Agent": "Mozilla/5.0"})
             if r.status_code == 200:
                 content = r.text
                 for pattern, label in JS_SECRET_PATTERNS:
@@ -429,10 +430,14 @@ def js_recon_worker(target, subdomains, q):
                             secrets_found.append({"url": url, "type": label, "value": val[:40] + "..."})
                             q.put(("secret", {"url": url, "type": label, "value": val[:40] + "..."}))
             scanned += 1
-            if scanned % 5 == 0:
-                q.put(("log", "info", f"📊 Scanned {scanned}/{len(list(js_urls)[:50])} files..."))
-        except: pass
+        except:
+            pass
 
+    if secrets_found:
+        q.put(("log", "warn", f"{len(secrets_found)} secrets found"))
+    else:
+        q.put(("log", "ok", f"Scanned {scanned} files — no secrets found"))
+    
     q.put(("js_done", {
         "js_urls": list(js_urls)[:100],
         "js_count": len(js_urls),
@@ -459,22 +464,23 @@ def api_jsrecon():
             elif msg[0] == "js_done": yield sse_event("done", msg[1]); break
     return Response(stream_with_context(gen()), content_type="text/event-stream")
 
-# ─── ARCHIVE RECON (IMPROVED DETECTION) ──────────────────────────────────────
+# ─── ARCHIVE RECON ────────────────────────────────────────────────────────────
 def archive_recon_worker(target, q):
+    """Mine gau + waybackurls for endpoints, parameters, interesting paths"""
     urls = set()
 
     if cmd_exists("gau"):
-        q.put(("log", "info", "📡 Mining gau archives..."))
+        q.put(("log", "info", "gau: mining archives..."))
         try:
             result = subprocess.run(f"gau --subs {target} 2>/dev/null | sort -u",
                 shell=True, capture_output=True, text=True, timeout=120)
             for l in result.stdout.splitlines():
                 if l.strip(): urls.add(l.strip())
-            q.put(("log", "ok", f"✓ gau: {len(urls)} URLs"))
+            q.put(("log", "ok", f"gau: {len(urls)} URLs"))
         except: pass
 
     if cmd_exists("waybackurls"):
-        q.put(("log", "info", "🏛️ Mining Wayback Machine..."))
+        q.put(("log", "info", "waybackurls: mining archive..."))
         try:
             result = subprocess.run(f"echo {target} | waybackurls 2>/dev/null | sort -u",
                 shell=True, capture_output=True, text=True, timeout=120)
@@ -482,21 +488,20 @@ def archive_recon_worker(target, q):
             for l in result.stdout.splitlines():
                 if l.strip(): urls.add(l.strip())
             new_urls = len(urls) - before
-            q.put(("log", "ok", f"✓ waybackurls: {new_urls} new URLs"))
+            q.put(("log", "ok", f"waybackurls: +{new_urls} URLs"))
         except: pass
 
-    q.put(("log", "info", f"🔍 Analyzing {len(urls)} URLs..."))
+    q.put(("log", "info", f"Analyzing {len(urls)} URLs..."))
     params = [u for u in urls if "=" in u]
     admin = [u for u in urls if any(x in u.lower() for x in ["admin","login","dashboard","panel","auth","api"])]
     js_files = [u for u in urls if ".js" in u.lower()]
     interesting = [u for u in urls if any(x in u.lower() for x in ["config","backup","env","secret","key","token",".git",".env"])]
 
-    q.put(("log", "ok", f"✓ Parameterized URLs: {len(params)}"))
     if admin:
-        q.put(("log", "warn", f"⚠️ ADMIN ENDPOINTS: {len(admin)} found"))
+        q.put(("log", "warn", f"ADMIN ENDPOINTS: {len(admin)} found"))
     if interesting:
-        q.put(("log", "warn", f"🔐 INTERESTING PATHS: {len(interesting)} found"))
-    q.put(("log", "ok", f"📜 JavaScript files: {len(js_files)}"))
+        q.put(("log", "warn", f"INTERESTING PATHS: {len(interesting)} found"))
+    q.put(("log", "ok", f"Parameters: {len(params)} | JS: {len(js_files)}"))
 
     q.put(("archive_done", {
         "total": len(urls),
@@ -613,7 +618,7 @@ Remove the dangling CNAME record for `{f.get('sub')}` from DNS immediately.
 
     return jsonify({"report": report})
 
-# ─── QUICK SCAN ──────────────────────────────────────────────────────────────
+# ─── QUICK SCAN ────────────────────────────────���─────────────────────────────
 @app.route("/api/quickscan", methods=["POST"])
 def api_quickscan():
     data = request.json or {}
