@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TAKEOVER.HUNTER V2 — Reon Beast Edition
-Fixed: JS Recon with real logs, proper error handling, archive detection
+Fixed: JS Recon katana stdin, serial http_probe blocking removed
 """
 
 import subprocess, socket, json, time, threading, queue, re, os, shutil
@@ -338,38 +338,66 @@ def api_scan():
             elif msg[0] == "log": yield sse_event("log", {"level": msg[1], "msg": msg[2]})
     return Response(stream_with_context(gen()), content_type="text/event-stream")
 
-# ─── JS RECON (FIXED - REAL LOGS) ──────────────────────────────────────────────
+# ─── JS RECON (FIXED) ────────────────────────────────────────────────────────
+def _probe_live_fast(sub):
+    """Non-blocking HEAD probe — avoids 4s body download just to check liveness."""
+    for scheme in ["https", "http"]:
+        try:
+            r = requests.head(f"{scheme}://{sub}", timeout=3, verify=False,
+                              allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"})
+            if r.status_code not in [0, 502, 503, 504]:
+                return True
+        except:
+            continue
+    return False
+
 def js_recon_worker(target, subdomains, q):
-    """Extract JS files from live subdomains and scan for secrets"""
-    
+    """Extract JS files from live subdomains and scan for secrets."""
+
     if not subdomains:
         q.put(("log", "warn", "No subdomains provided for JS Recon"))
         q.put(("js_done", {"js_urls": [], "js_count": 0, "secrets": [], "scanned": 0}))
         return
-    
-    q.put(("log", "info", f"JS Recon: {len(subdomains)} subdomains"))
-    
+
+    q.put(("log", "info", f"JS Recon: probing liveness for {len(subdomains)} subdomains..."))
+
+    # FIX: Parallel liveness check — no more serial 4s-per-host blocking
+    live_subs = []
+    with ThreadPoolExecutor(max_workers=20) as ex:
+        futures = {ex.submit(_probe_live_fast, s): s for s in subdomains[:50]}
+        for fut in as_completed(futures):
+            if fut.result():
+                live_subs.append(futures[fut])
+
+    q.put(("log", "ok", f"Live subdomains: {len(live_subs)}"))
+
+    if not live_subs:
+        q.put(("log", "warn", "No live subdomains — skipping katana"))
+
     js_urls = set()
     secrets_found = []
 
-    # Method 1: Katana (Live crawling)
-    if cmd_exists("katana"):
-        q.put(("log", "info", "katana: scanning live endpoints..."))
+    # Method 1: Katana — FIXED: use -list - to read from stdin properly
+    if cmd_exists("katana") and live_subs:
+        q.put(("log", "info", f"katana: crawling {min(10, len(live_subs))} live hosts..."))
         try:
-            live_subs = [s for s in subdomains if http_probe(s)["code"] not in [0]][:10]
-            if live_subs:
-                inp = "\n".join([f"https://{s}" for s in live_subs])
-                result = subprocess.run(
-                    ["katana", "-silent", "-jc", "-d", "2", "-f", "endpoint"],
-                    input=inp, capture_output=True, text=True, timeout=60
-                )
-                for line in result.stdout.splitlines():
-                    if ".js" in line.lower():
-                        js_urls.add(line.strip())
-                if js_urls:
-                    q.put(("log", "ok", f"katana: {len(js_urls)} JS files"))
+            inp = "\n".join([f"https://{s}" for s in live_subs[:10]])
+            # FIX: "-list -" tells katana to read targets from stdin line by line
+            result = subprocess.run(
+                ["katana", "-silent", "-jc", "-d", "2", "-f", "endpoint", "-list", "-"],
+                input=inp, capture_output=True, text=True, timeout=90
+            )
+            before = len(js_urls)
+            for line in result.stdout.splitlines():
+                if ".js" in line.lower() and line.strip():
+                    js_urls.add(line.strip())
+            added = len(js_urls) - before
+            if added > 0:
+                q.put(("log", "ok", f"katana: {added} JS files"))
+            else:
+                q.put(("log", "warn", "katana: no JS files found (check version supports -list -)"))
         except Exception as e:
-            q.put(("log", "err", f"katana: {str(e)[:40]}"))
+            q.put(("log", "err", f"katana: {str(e)[:60]}"))
 
     # Method 2: Wayback Machine
     if cmd_exists("waybackurls"):
@@ -384,12 +412,11 @@ def js_recon_worker(target, subdomains, q):
                 if line.strip():
                     js_urls.add(line.strip())
             added = len(js_urls) - before
-            if added > 0:
-                q.put(("log", "ok", f"waybackurls: +{added} JS files"))
+            q.put(("log", "ok" if added > 0 else "warn", f"waybackurls: +{added} JS files"))
         except Exception as e:
-            q.put(("log", "err", f"waybackurls: {str(e)[:40]}"))
+            q.put(("log", "err", f"waybackurls: {str(e)[:60]}"))
 
-    # Method 3: GAU archive
+    # Method 3: GAU
     if cmd_exists("gau"):
         q.put(("log", "info", "gau: mining archives..."))
         try:
@@ -402,18 +429,17 @@ def js_recon_worker(target, subdomains, q):
                 if line.strip():
                     js_urls.add(line.strip())
             added = len(js_urls) - before
-            if added > 0:
-                q.put(("log", "ok", f"gau: +{added} JS files"))
+            q.put(("log", "ok" if added > 0 else "warn", f"gau: +{added} JS files"))
         except Exception as e:
-            q.put(("log", "err", f"gau: {str(e)[:40]}"))
+            q.put(("log", "err", f"gau: {str(e)[:60]}"))
 
     if not js_urls:
-        q.put(("log", "warn", "No JS files found"))
+        q.put(("log", "warn", "No JS files found across all sources"))
         q.put(("js_done", {"js_urls": [], "js_count": 0, "secrets": [], "scanned": 0}))
         return
 
-    q.put(("log", "ok", f"Total: {len(js_urls)} JS files"))
-    q.put(("log", "info", f"Scanning {min(50, len(js_urls))} for secrets..."))
+    q.put(("log", "ok", f"Total: {len(js_urls)} JS files found"))
+    q.put(("log", "info", f"Scanning up to 50 for secrets..."))
 
     # Scan JS for secrets
     scanned = 0
@@ -427,17 +453,18 @@ def js_recon_worker(target, subdomains, q):
                     for match in matches:
                         val = match[-1] if isinstance(match, tuple) else match
                         if len(val) > 8:
-                            secrets_found.append({"url": url, "type": label, "value": val[:40] + "..."})
-                            q.put(("secret", {"url": url, "type": label, "value": val[:40] + "..."}))
+                            entry = {"url": url, "type": label, "value": val[:40] + "..."}
+                            secrets_found.append(entry)
+                            q.put(("secret", entry))
             scanned += 1
         except:
             pass
 
     if secrets_found:
-        q.put(("log", "warn", f"{len(secrets_found)} secrets found"))
+        q.put(("log", "warn", f"{len(secrets_found)} secrets found!"))
     else:
         q.put(("log", "ok", f"Scanned {scanned} files — no secrets found"))
-    
+
     q.put(("js_done", {
         "js_urls": list(js_urls)[:100],
         "js_count": len(js_urls),
@@ -618,7 +645,7 @@ Remove the dangling CNAME record for `{f.get('sub')}` from DNS immediately.
 
     return jsonify({"report": report})
 
-# ─── QUICK SCAN ────────────────────────────────���─────────────────────────────
+# ─── QUICK SCAN ──────────────────────────────────────────────────────────────
 @app.route("/api/quickscan", methods=["POST"])
 def api_quickscan():
     data = request.json or {}
