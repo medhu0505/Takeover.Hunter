@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TAKEOVER.HUNTER V3 — Reon Beast Edition
+TAKEOVER.HUNTER V2 — Reon Beast Edition
 Fixed: JS Recon katana stdin, serial http_probe blocking removed
 NEW: Bulk URL CNAME scanner with provider filtering
 """
@@ -356,7 +356,7 @@ def api_scan():
                 yield sse_event("log", {"level": msg[1], "msg": msg[2]})
     return Response(stream_with_context(gen()), content_type="text/event-stream")
 
-# ─── BULK URL SCAN (NEW) ─────────────────────────────────────────���────────
+# ─── BULK URL SCAN (NEW) ──────────────────────────────────────────────────
 def bulk_url_scan_worker(urls, provider_filter, q, max_workers=20):
     """Extract CNAME from URLs and scan for vulnerabilities"""
     total = len(urls)
@@ -465,7 +465,7 @@ def api_bulkurlscan():
     
     return Response(stream_with_context(gen()), content_type="text/event-stream")
 
-# ─── JS RECON (FIXED) ───────────────────────────────────��──────────────────
+# ─── JS RECON (FIXED) ──────────────────────────────────────────────────────
 def _probe_live_fast(sub):
     """Non-blocking HEAD probe — avoids 4s body download just to check liveness."""
     for scheme in ["https", "http"]:
