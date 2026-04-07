@@ -47,7 +47,7 @@ body::before {
 }
 body::after {
   content:''; position:fixed; inset:0; pointer-events:none; z-index:9998; opacity:0.4;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='50'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='0.1'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' result='noise'/%3E%3C/filter%3E%3Crect width='256' height='256' fill='%23050608'/%3E%3Crect width='256' height='256' fill='%2300ff88' opacity='0.03' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 ::selection { background:rgba(0,255,136,0.25); }
@@ -365,6 +365,22 @@ textarea { resize:none; line-height:1.5; }
 .bulk-body { padding:10px 12px 12px; display:none; }
 .bulk-body.open { display:block; }
 
+/* ── BULK URL SECTION ── */
+.bulkurl-section { border-top:1px solid var(--border); flex-shrink:0; }
+.bulkurl-toggle {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 12px; cursor:pointer; user-select:none;
+  font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);
+  transition:background 0.15s;
+}
+.bulkurl-toggle:hover { background:rgba(255,204,0,0.03); }
+.bulkurl-toggle-label { display:flex; align-items:center; gap:8px; }
+.bulkurl-ph-accent { width:2px;height:10px;background:var(--yellow);border-radius:2px;box-shadow:0 0 6px rgba(255,204,0,0.3); }
+.bulkurl-caret { font-size:8px; transition:transform 0.2s var(--ease); color:var(--yellow); }
+.bulkurl-caret.open { transform:rotate(90deg); }
+.bulkurl-body { padding:10px 12px 12px; display:none; }
+.bulkurl-body.open { display:block; }
+
 /* ── CENTER ── */
 .center { flex:1; display:flex; overflow:hidden; border-right:1px solid var(--border); }
 .mid-results { flex:1; display:flex; flex-direction:column; overflow:hidden; }
@@ -661,6 +677,25 @@ textarea { resize:none; line-height:1.5; }
       </div>
     </div>
 
+    <!-- BULK URL SCAN (NEW) -->
+    <div class="bulkurl-section">
+      <div class="bulkurl-toggle" onclick="toggleBulkURL()">
+        <div class="bulkurl-toggle-label">
+          <div class="bulkurl-ph-accent"></div>
+          Bulk URL Scan
+          <span class="qs-badge" style="background:rgba(255,204,0,0.1);color:var(--yellow);border-color:rgba(255,204,0,0.3)">NEW</span>
+        </div>
+        <span class="bulkurl-caret" id="bulkurlCaret">›</span>
+      </div>
+      <div class="bulkurl-body" id="bulkurlBody">
+        <div class="field">
+          <div class="flabel">URLs (one per line)</div>
+          <textarea id="bulkurlInput" rows="4" placeholder="https://example1.com&#10;https://example2.com&#10;sub.example3.com"></textarea>
+        </div>
+        <button class="btn btn-orange" onclick="runBulkURLScan()"><span>🔗</span> Scan URLs</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- CENTER -->
@@ -724,7 +759,7 @@ textarea { resize:none; line-height:1.5; }
 
 <script>
 // ─── STATE ──────────────────────────────────────────────────────────
-const S = { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[], jsRecon:null, archive:null };
+const S = { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[], jsRecon:null, archive:null, bulkUrlVuln:[] };
 let logStart = Date.now();
 
 // Entertaining messages for JS Recon
@@ -806,6 +841,13 @@ function toggleBulk() {
   caret.classList.toggle('open', open);
 }
 
+function toggleBulkURL() {
+  const body = document.getElementById('bulkurlBody');
+  const caret = document.getElementById('bulkurlCaret');
+  const open = body.classList.toggle('open');
+  caret.classList.toggle('open', open);
+}
+
 // ─── SSE HELPER ─────────────────────────────────────────────────────────
 function listenSSE(url, options, handlers) {
   return new Promise((resolve, reject) => {
@@ -854,7 +896,7 @@ async function startEnum() {
   if (!target) { alert('Enter a target domain.'); return; }
 
   logStart = Date.now();
-  Object.assign(S, { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[], jsRecon:null, archive:null });
+  Object.assign(S, { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[], jsRecon:null, archive:null, bulkUrlVuln:[] });
   document.getElementById('logBox').innerHTML = '';
   document.getElementById('resultsBox').innerHTML =
     '<div class="empty-state"><div class="spinner" style="width:14px;height:14px;margin:0 auto 10px"></div>Enumerating subdomains...</div>';
@@ -1002,114 +1044,194 @@ async function startScan() {
   renderResults();
   document.getElementById('btnScan').disabled = false;
   document.getElementById('btnVerify').disabled = S.vulnerable.length === 0;
-  document.getElementById('btnJSRecon').disabled = false;
-  setStatus(S.vulnerable.length > 0 ? `${S.vulnerable.length} VULNS` : 'CLEAN',
-            S.vulnerable.length > 0 ? 'vulns' : 'ok');
-  setProgress(1,1);
+  setStatus('SCANNED','ok'); setStage(4);
 }
 
-// ─── VERIFY ─────────────────────────────────────────────────────────
+// ─── BULK URL SCAN (NEW) ──────────────────────────────────────────────
+async function runBulkURLScan() {
+  const urlsText = document.getElementById('bulkurlInput').value.trim();
+  if (!urlsText) { alert('Enter at least one URL.'); return; }
+
+  logStart = Date.now();
+  S.bulkUrlVuln = [];
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('resultsBox').innerHTML =
+    '<div class="empty-state"><div class="spinner" style="width:14px;height:14px;margin:0 auto 10px"></div>Scanning URLs...</div>';
+  document.getElementById('btnExport').style.display = 'none';
+
+  setStatus('SCANNING','scanning');
+  const urls = urlsText.split('\n').map(u => u.trim()).filter(u => u);
+  const filter = [...selectedProviders];
+  const filterMsg = filter.length ? `[${filter.join(', ')}]` : '[All Providers]`;
+
+  addLog(`Bulk URL Scan: ${urls.length} URLs ${filterMsg}`, 'l-hi');
+
+  await listenSSE('/api/bulkurlscan', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ urls: urls, provider_filter: filter }),
+  }, {
+    progress: d => setProgress(d.done, d.total),
+    vuln: d => {
+      S.bulkUrlVuln.push(d);
+      addLog(`⚠ VULN: ${d.sub} → ${d.provider}`, 'l-warn');
+    },
+    log: d => addLog(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':'l-info'),
+    done: d => {
+      addLog(`✓ Scan complete — ${d.count} vulnerable found`, d.count > 0 ? 'l-warn' : 'l-ok');
+      renderBulkURLResults();
+    },
+    error: d => addLog('Error: '+d.msg, 'l-err'),
+  });
+
+  document.getElementById('btnExport').style.display = '';
+  setStatus('DONE','ok');
+}
+
+function renderBulkURLResults() {
+  const box = document.getElementById('resultsBox');
+  if (!S.bulkUrlVuln.length) {
+    box.innerHTML = '<div class="empty-state"><span class="empty-state-icon">✓</span>No vulnerabilities found</div>';
+    return;
+  }
+  box.innerHTML = '<div class="result-section">🔴 VULNERABLE (' + S.bulkUrlVuln.length + ')</div>';
+  S.bulkUrlVuln.forEach(v => {
+    const row = document.createElement('div');
+    row.className = 'row-item';
+    row.innerHTML = `
+      <div class="ri-icon ri-vuln">●</div>
+      <div class="ri-sub">${escHtml(v.sub)}</div>
+      <span class="badge b-prov">${escHtml(v.provider)}</span>
+      <span class="badge b-high">${escHtml(v.severity)}</span>
+    `;
+    row.onclick = () => showDetail(v);
+    box.appendChild(row);
+  });
+}
+
+// ─── VERIFY ────────────────────────────────────────────────────────
 async function startVerify() {
   if (!S.vulnerable.length) return;
   document.getElementById('btnVerify').disabled = true;
-  setStatus('VERIFYING','running');
+  setStatus('VERIFYING','scanning');
+  S.verified = [];
+
   addLog(`Verifying ${S.vulnerable.length} findings...`, 'l-info');
 
   await listenSSE('/api/verify', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ vulnerable: S.vulnerable }),
   }, {
-    log: d => addLog(d.msg, d.level==='ok'?'l-ok':'l-warn'),
-    verified: d => {
-      if (d.verified) addLog(`✓ ${d.sub} CONFIRMED`, 'l-ok');
-      else addLog(`✗ ${d.sub} — not confirmed`, 'l-warn');
-    },
+    progress: d => setProgress(d.done, d.total),
+    verified: d => S.verified.push(d),
+    log: d => addLog(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':'l-info'),
     done: d => {
-      S.verified = d.verified||[];
       const confirmed = S.verified.filter(v => v.verified).length;
-      addLog(`✓ Verification done — ${confirmed}/${S.vulnerable.length} confirmed`, 'l-ok');
+      addLog(`✓ Verification complete — ${confirmed}/${S.verified.length} confirmed`, 'l-ok');
+      renderResults();
     },
     error: d => addLog('Verify error: '+d.msg, 'l-err'),
   });
 
-  renderResults();
   document.getElementById('btnVerify').disabled = false;
-  setStatus('VERIFIED','ok');
-  setStage(4);
+  setStatus('VERIFIED','ok'); setStage(5);
 }
 
-// ─── JS RECON (FIXED) ──────────────────────────────────────────────────────
+// ─── QUICK SCAN ────────────────────────────────────────────────────
+async function runQuickScan() {
+  const sub = document.getElementById('qsSub').value.trim();
+  const cname = document.getElementById('qsCname').value.trim();
+  if (!cname) { alert('Enter CNAME.'); return; }
+
+  document.getElementById('btnQS').disabled = true;
+  const res = await fetch('/api/quickscan', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sub, cname }),
+  });
+  const data = await res.json();
+  document.getElementById('btnQS').disabled = false;
+
+  const result = document.getElementById('qsResult');
+  result.className = 'qs-result show ' + (data.vulnerable ? 'vuln' : 'safe');
+  result.innerHTML = `
+    <strong>${escHtml(data.provider)}</strong> — ${data.vulnerable ? '🔴 VULNERABLE' : '✓ Safe'}<br/>
+    <small>${data.vulnerable ? `Confidence: ${data.confidence} | Severity: ${data.severity}` : 'No indicators'}</small>
+  `;
+}
+
+// ─── BULK SCAN ────────────────────────────────────────────────────
+async function runBulkScan() {
+  const inp = document.getElementById('bulkInput').value.trim();
+  if (!inp) { alert('Enter CNAMEs.'); return; }
+  const cnames = inp.split('\n').map(l => l.trim()).filter(l => l);
+  const recs = cnames.map(c => ({ sub: c, cname: c }));
+
+  logStart = Date.now();
+  S.vulnerable = [];
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('resultsBox').innerHTML =
+    '<div class="empty-state"><div class="spinner" style="width:14px;height:14px;margin:0 auto 10px"></div>Scanning...</div>';
+
+  setStatus('SCANNING','scanning');
+  const filter = [...selectedProviders];
+  addLog(`Bulk CNAME Scan: ${cnames.length} targets`, 'l-hi');
+
+  await listenSSE('/api/scan', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ cname_records: recs, provider_filter: filter }),
+  }, {
+    progress: d => setProgress(d.done, d.total),
+    vuln: d => { S.vulnerable.push(d); addLog(`⚠ ${d.sub}`, 'l-warn'); },
+    log: d => addLog(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':'l-info'),
+    done: d => {
+      addLog(`✓ Done — ${d.count} vulnerable`, d.count > 0 ? 'l-warn' : 'l-ok');
+      renderResults();
+    },
+  });
+
+  setStatus('DONE','ok');
+}
+
+// ─── JS RECON ────────────────────────────────────────────────────
 async function startJSRecon() {
+  if (!S.subdomains.length) return;
   const target = document.getElementById('targetInput').value.trim();
-  if (!target) { alert('Enter target domain'); return; }
+  if (!target) { alert('Enter target domain.'); return; }
 
   document.getElementById('btnJSRecon').disabled = true;
-
-  // FIX: use let, not const — interval ID needs to be reassignable
-  let entertainInterval = null;
-  let msgIdx = 0;
-
-  const startEntertain = () => {
-    // Clear any existing interval before starting a new one
-    if (entertainInterval) clearInterval(entertainInterval);
-    entertainInterval = setInterval(() => {
-      if (msgIdx < entertainingMessages.length) {
-        addLog(entertainingMessages[msgIdx++], 'l-info');
-      } else {
-        clearInterval(entertainInterval);
-      }
-    }, 2500);
-  };
-
-  const stopEntertain = () => {
-    if (entertainInterval) { clearInterval(entertainInterval); entertainInterval = null; }
-  };
-
-  addLog('🕵️ Starting JS Recon...', 'l-info');
   setStatus('JS RECON','running');
-  setStage(6);
-  startEntertain();
+  logStart = Date.now();
+  document.getElementById('logBox').innerHTML = '';
+
+  addLog('Starting JavaScript Recon...', 'l-info');
 
   await listenSSE('/api/jsrecon', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ target, subdomains: S.subdomains }),
   }, {
-    // FIX: handler key is "log" (SSE event name) — calls addLog() not log()
-    log: d => {
-      stopEntertain();
-      addLog(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':d.level==='err'?'l-err':'l-info');
-      startEntertain();
-    },
-    secret: d => {
-      stopEntertain();
-      addLog(`🔓 SECRET: ${d.type} @ ${d.url}`, 'l-warn');
-      startEntertain();
-    },
+    log: d => addLog(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':'l-info'),
+    secret: d => addLog(`🔑 ${d.type}: ${d.value}`, 'l-warn'),
     done: d => {
-      stopEntertain();
       S.jsRecon = d;
-      addLog(`✓ JS Recon done — ${d.js_count} files, ${d.secrets.length} secrets`, 'l-ok');
-    },
-    error: d => {
-      stopEntertain();
-      addLog('JS Recon error: '+d.msg, 'l-err');
+      addLog(`✓ JS Recon complete — ${d.secrets.length} secrets, ${d.js_count} files scanned`, 'l-ok');
     },
   });
 
-  stopEntertain();
   document.getElementById('btnJSRecon').disabled = false;
-  setStatus('JS DONE','ok');
+  setStatus('JS RECON DONE','ok');
 }
 
-// ─── ARCHIVE MINE ────────────────────────────────────────────────────────
+// ─── ARCHIVE MINE ──────────────────────────────────────────────────
 async function startArchive() {
   const target = document.getElementById('targetInput').value.trim();
-  if (!target) { alert('Enter target domain'); return; }
+  if (!target) { alert('Enter target domain.'); return; }
 
-  document.getElementById('btnArchive').disabled = true;
-  addLog('📦 Starting Archive Mining...', 'l-info');
-  setStatus('ARCHIVE','running');
-  setStage(7);
+  setStatus('ARCHIVE MINING','running');
+  logStart = Date.now();
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('resultsBox').innerHTML =
+    '<div class="empty-state"><div class="spinner" style="width:14px;height:14px;margin:0 auto 10px"></div>Mining archives...</div>';
+
+  addLog('Mining archives for ' + target, 'l-info');
 
   await listenSSE('/api/archive', {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -1117,213 +1239,21 @@ async function startArchive() {
   }, {
     log: d => addLog(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':'l-info'),
     done: d => {
-      addLog(`✓ Archive done — ${d.total} URLs`, 'l-ok');
-      addLog(`  Parameters: ${d.params.length} | Admin: ${d.admin.length} | JS: ${d.js.length} | Interesting: ${d.interesting.length}`, 'l-info');
       S.archive = d;
-      renderArchiveResults(d);
+      renderArchiveResults();
+      addLog(`✓ Archive mining done — ${d.total} URLs analyzed`, 'l-ok');
     },
-    error: d => addLog('Archive error: '+d.msg, 'l-err'),
   });
 
-  document.getElementById('btnArchive').disabled = false;
   setStatus('ARCHIVE DONE','ok');
 }
 
-// ─── RENDER RESULTS ──────────────────────────────────────────────────────
-function renderResults() {
-  let html = '';
-
-  if (S.vulnerable.length) {
-    html += `<div class="result-section">🚨 VULNERABLE (${S.vulnerable.length})</div>`;
-    S.vulnerable.forEach(v => {
-      const vJson = JSON.stringify(v).replace(/"/g,'&quot;');
-      html += `<div class="row-item" onclick="selectResult('vuln',this,${vJson})"><div class="ri-icon ri-vuln">!</div><div class="ri-sub">${escHtml(v.sub)}</div><span class="badge b-crit">${v.severity}</span></div>`;
-    });
-  }
-
-  if (S.cnames.length) {
-    html += `<div class="result-section">CNAMES (${S.cnames.length})</div>`;
-    S.cnames.slice(0,100).forEach(c => {
-      const isVuln = S.vulnerable.some(v => v.sub === c.sub);
-      if (!isVuln) {
-        const cJson = JSON.stringify(c).replace(/"/g,'&quot;');
-        html += `<div class="row-item" onclick="selectResult('cname',this,${cJson})"><div class="ri-icon ri-cname">C</div><div class="ri-sub">${escHtml(c.sub)}</div><span class="badge b-prov">${escHtml(c.provider)}</span></div>`;
-      }
-    });
-  }
-
-  if (S.subdomains.length) {
-    html += `<div class="result-section">ENUMERATED (${S.subdomains.length})</div>`;
-    S.subdomains.slice(0,100).forEach(s => {
-      const inCnames = S.cnames.some(c => c.sub === s);
-      if (!inCnames) {
-        html += `<div class="row-item"><div class="ri-icon ri-a">S</div><div class="ri-sub">${escHtml(s)}</div></div>`;
-      }
-    });
-  }
-
-  if (S.dead.length) {
-    html += `<div class="result-section">DEAD (${S.dead.length})</div>`;
-    S.dead.slice(0,50).forEach(d => {
-      html += `<div class="row-item"><div class="ri-icon ri-dead">✕</div><div class="ri-sub">${escHtml(d.sub)}</div></div>`;
-    });
-  }
-
-  document.getElementById('resultsBox').innerHTML = html || '<div class="empty-state">No results yet</div>';
-}
-
-function renderArchiveResults(archive) {
-  const mkList = (arr, cls) => arr.length
-    ? arr.slice(0,10).map(u => `<div style="word-break:break-all;margin:2px 0;color:${cls};">${escHtml(u)}</div>`).join('')
-    : '<div style="color:var(--dimmed)">None found</div>';
-
-  const html = `
-    <div class="detail-section">
-      <div class="detail-title">ARCHIVE MINING RESULTS</div>
-      <div class="drow"><div class="dk">Total URLs</div><div class="dv green">${archive.total}</div></div>
-      <div class="drow"><div class="dk">Params</div><div class="dv blue">${archive.params.length}</div></div>
-      <div class="drow"><div class="dk">Admin</div><div class="dv yellow">${archive.admin.length}</div></div>
-      <div class="drow"><div class="dk">JS Files</div><div class="dv blue">${archive.js.length}</div></div>
-      <div class="drow"><div class="dk">Interesting</div><div class="dv red">${archive.interesting.length}</div></div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-title">ADMIN ENDPOINTS</div>
-      <div style="font-size:9px;max-height:120px;overflow-y:auto;">${mkList(archive.admin,'var(--yellow)')}</div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-title">INTERESTING PATHS</div>
-      <div style="font-size:9px;max-height:120px;overflow-y:auto;">${mkList(archive.interesting,'var(--red)')}</div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-title">JAVASCRIPT FILES</div>
-      <div style="font-size:9px;max-height:120px;overflow-y:auto;">${mkList(archive.js,'var(--blue)')}</div>
-    </div>
-  `;
-  document.getElementById('detailBox').innerHTML = html;
-}
-
-function selectResult(type, el, data) {
-  document.querySelectorAll('.row-item').forEach(x => x.classList.remove('selected'));
-  el.classList.add('selected');
-  if (type === 'vuln' && data) showDetail(data);
-}
-
-function showDetail(vuln) {
-  let html = `
-    <div class="detail-section">
-      <div class="detail-title">SUBDOMAIN</div>
-      <div class="drow"><div class="dk">Host</div><div class="dv">${escHtml(vuln.sub)}</div></div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-title">CNAME TARGET</div>
-      <div class="drow"><div class="dk">CNAME</div><div class="dv blue">${escHtml(vuln.cname)}</div></div>
-      <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(vuln.provider)}</div></div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-title">VULNERABILITY</div>
-      <div class="drow"><div class="dk">Status</div><div class="dv red">VULNERABLE</div></div>
-      <div class="drow"><div class="dk">Severity</div><div class="dv red">${vuln.severity}</div></div>
-      <div class="drow"><div class="dk">Confidence</div><div class="dv green">${vuln.confidence.toUpperCase()}</div></div>
-      <div class="drow"><div class="dk">NXDOMAIN</div><div class="dv ${vuln.nxdomain?'green':'yellow'}">${vuln.nxdomain?'YES':'NO'}</div></div>
-      <div class="drow"><div class="dk">HTTP Code</div><div class="dv">${vuln.http_code}</div></div>
-    </div>
-  `;
-
-  if (vuln.claimable) {
-    html += `<div class="detail-section">
-      <div class="detail-title">CLAIMABILITY</div>
-      <div class="drow"><div class="dk">Claimable</div><div class="dv green">YES</div></div>
-      <div class="drow"><div class="dk">Free Account</div><div class="dv ${vuln.free_account?'green':'yellow'}">${vuln.free_account?'YES':'NO'}</div></div>
-    </div>`;
-  }
-
-  const vJson = JSON.stringify(vuln).replace(/"/g,'&quot;');
-  html += `<div style="padding:10px 12px;"><button class="action-btn action-btn-green" onclick="showReport(${vJson})">⚡ Generate H1 Report</button></div>`;
-  document.getElementById('detailBox').innerHTML = html;
-}
-
-function showReport(vuln) {
-  fetch('/api/report', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      finding: vuln,
-      h1_user: document.getElementById('h1user').value || 'stickybugger',
-      platform: 'HackerOne'
-    })
-  }).then(r => r.json()).then(d => {
-    document.getElementById('modalContent').textContent = d.report;
-    document.getElementById('reportModal').style.display = 'flex';
-  });
-}
-
-function closeModal() { document.getElementById('reportModal').style.display = 'none'; }
-
-function copyModalReport() {
-  navigator.clipboard.writeText(document.getElementById('modalContent').textContent)
-    .then(() => addLog('✓ Report copied to clipboard', 'l-ok'));
-}
-
-function exportResults() {
-  const data = { subdomains: S.subdomains, cnames: S.cnames, vulnerable: S.vulnerable };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'takeover-results.json'; a.click();
-}
-
-// ─── QUICK SCAN ───────────────────────────────────────────────────────────
-async function runQuickScan() {
-  const sub = document.getElementById('qsSub').value.trim();
-  const cname = document.getElementById('qsCname').value.trim();
-  if (!cname) { alert('Enter CNAME target'); return; }
-
-  const result = await fetch('/api/quickscan', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ sub, cname })
-  }).then(r => r.json());
-
-  const el = document.getElementById('qsResult');
-  el.innerHTML = `
-    <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(result.sub)}</div></div>
-    <div class="drow"><div class="dk">CNAME</div><div class="dv">${escHtml(result.cname)}</div></div>
-    <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(result.provider)}</div></div>
-    <div class="drow"><div class="dk">Status</div><div class="dv ${result.vulnerable?'red':'green'}">${result.vulnerable?'VULNERABLE':'SAFE'}</div></div>
-    <div class="drow"><div class="dk">Confidence</div><div class="dv">${result.confidence.toUpperCase()}</div></div>
-  `;
-  el.className = `qs-result show ${result.vulnerable?'vuln':'safe'}`;
-}
-
-// ─── BULK SCAN ────────────────────────────────────────────────────────
-async function runBulkScan() {
-  const input = document.getElementById('bulkInput').value.trim();
-  if (!input) { alert('Enter CNAMEs'); return; }
-
-  const cnames = input.split('\n').map(l => l.trim()).filter(l => l);
-  addLog(`⚡ Bulk scanning ${cnames.length} CNAMEs...`, 'l-info');
-
-  for (const cname of cnames) {
-    const result = await fetch('/api/quickscan', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ cname })
-    }).then(r => r.json());
-
-    if (result.vulnerable) {
-      addLog(`⚠ ${result.sub || cname} — VULNERABLE [${result.severity}]`, 'l-warn');
-      S.vulnerable.push(result);
-    } else {
-      addLog(`✓ ${result.sub || cname} — safe`, 'l-ok');
-    }
-  }
-
-  setStat('sVuln', S.vulnerable.length);
-  renderResults();
-  addLog('✓ Bulk scan complete', 'l-ok');
-}
-
-// Init
-document.addEventListener('DOMContentLoaded', () => {
-  addLog('🚀 TAKEOVER.HUNTER V2 ready', 'l-ok');
-});
-</script>
-</body>
-</html>
+function renderArchiveResults() {
+  if (!S.archive) return;
+  const box = document.getElementById('resultsBox');
+  box.innerHTML = '';
+  if (S.archive.admin.length) {
+    box.innerHTML += '<div class="result-section">🔓 ADMIN ENDPOINTS (' + S.archive.admin.length + ')</div>';
+    S.archive.admin.forEach(u => {
+      const row = document.createElement('div');
+      
