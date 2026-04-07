@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TAKEOVER.HUNTER V2 — Reon Beast Edition
+TAKEOVER.HUNTER V3 — Reon Beast Edition
 Fixed: JS Recon katana stdin, serial http_probe blocking removed
 NEW: Bulk URL CNAME scanner with provider filtering
 """
